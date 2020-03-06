@@ -35,11 +35,11 @@ def get_odometry(msg):
 ROS.Subscriber('/odom', Odometry, get_odometry)
 print 'Initialiting odom_listener topic'
 
-tqdm_bar = tqdm(total=50)
-while (end - start) <= 50:
+tqdm_bar = tqdm(total=20)
+while (end - start) <= 20:
     #Calculate linear velocity
     teta = atan2(burger_pose['y'], burger_pose['x']) 
-    vel.linear.x = 0.1
+    vel.linear.x = 0.15
     vel.angular.z = 0.0
 
     vel_publisher.publish(vel)
