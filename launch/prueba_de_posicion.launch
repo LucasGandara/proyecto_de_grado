@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="Proyecto_de_grado" type="Pruebas_de_posicion.py" name="move_robot" output="screen"/>
+</launch>
