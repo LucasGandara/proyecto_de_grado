@@ -12,8 +12,6 @@ import matplotlib.pyplot as plt
 from time import sleep
 import sys
 
-print 'datos leidos'
-
 ROS.init_node('position_control')
 print 'Iniciando nodo para el control de posición'
 
@@ -70,8 +68,9 @@ TETA = 0
 LASTTETA = 0
 Kv = 1 # control gain
 iterations = 0
-X_references = [1, 2, 3, 3, 6]
-Y_references = [1, 1, 3, 3.5, 0]
+X_references = [0.2, 0.2, 0.4, 0.6, 1]
+Y_references = [0.2, 0.6, 1, 1, 1]
+TETA_references = [0, 0, 0, 0, 0]
 
 # Graph variables
 Totalerrorx = []
@@ -89,6 +88,7 @@ for i in range(5):
     print 'Referecenia actual x: ', X_reference
     print 'Referencia acutal y: ', Y_reference
     print '---------------------------'
+    # Errror 10% separacion de ruedas 
     while hypot(errorx, errory) > 0.05:
         iterations += 1
 
@@ -102,7 +102,7 @@ for i in range(5):
         Xp = V * cos(TETA) 
         Yp = V * sin(TETA)
         errort = atan2(errory, errorx) # angle to the reference point
-        tetap = 3 * errort - TETA
+        tetap = errort - TETA
         # Inverse kinematic
         A = np.array([ [R * cos(TETA) / 2, R * cos(TETA) / 2],
                     [R * sin(TETA) / 2, R * sin(TETA) / 2],
@@ -130,6 +130,7 @@ for i in range(5):
         Z = Hrobot.item(2)
         vel.linear.x = min(V, 0.1)
 
+    
         if  errort <= -pi/4 or errort > pi/4:
             if Y_reference < 0 and errory:
                 errort = -2 * pi + errort
@@ -154,6 +155,8 @@ for i in range(5):
         # Publish the velocity
         vel_publisher.publish(vel)
         rate.sleep()
+    
+    print 'Posicion a la cual llegó: ', burger_pose['x'], burger_pose['y']
 
 vel.linear.x = 0
 vel.angular.z = 0
