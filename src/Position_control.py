@@ -68,8 +68,8 @@ TETA = 0
 LASTTETA = 0
 Kv = 1 # control gain
 iterations = 0
-X_references = [0.2, 0.2, 0.4, 0.6, 1]
-Y_references = [0.2, 0.6, 1, 1, 1]
+X_references = [0.6, 0.2, 0.4, 0.6, 1]
+Y_references = [0.3, 0.6, 1, 1, 1]
 TETA_references = [0, 0, 0, 0, 0]
 
 # Graph variables
@@ -78,7 +78,7 @@ Totalerrory = []
 Totalwr     = []
 Totalwl     = []
 # Model Ecuations
-for i in range(5):
+for i in range(1):
     sleep(1)
     X_reference = X_references[i]
     Y_reference = Y_references[i]
@@ -89,7 +89,7 @@ for i in range(5):
     print 'Referencia acutal y: ', Y_reference
     print '---------------------------'
     # Errror 10% separacion de ruedas 
-    while hypot(errorx, errory) > 0.05:
+    while hypot(errorx, errory) > 0.0016:
         iterations += 1
 
         errorx = X_reference - burger_pose['x'];
