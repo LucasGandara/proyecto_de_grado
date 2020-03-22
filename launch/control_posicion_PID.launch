@@ -1,4 +1,4 @@
 <?xml version="1.0"?>
 <launch>
-    <node pkg="Proyecto_de_grado" type="Position_control.py" name="position_control" output="screen" />
+    <node pkg="proyecto_de_grado" type="Position_control.py" name="position_control" output="screen" />
 </launch>
