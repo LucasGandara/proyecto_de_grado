@@ -16,7 +16,7 @@ ROS.init_node('position_control')
 print 'Iniciando nodo para el control de posición'
 
 def transform_vel(Ei, teta):
-    """ Transform the velocity from the global fram to robot frame """
+    """ Transform the velocity from the global frame to robot frame """
     Rz = np.array([ [cos(teta), -sin(teta), 0],
                     [sin(teta),  cos(teta), 0],
                     [        0,          0, 1]])
