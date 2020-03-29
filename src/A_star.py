@@ -73,7 +73,7 @@ def redrawGameWindow(win):
     for i in range(cols):
         for j in range(rows):
             pygame.draw.rect(win, (0, 0, 255), (spots[i][j].x * w, 1 + spots[i][j].y * h, w, h), 1)
-    
+
     # Dibujams los openSet con verde
     for i,spot in enumerate(OpenSet):
         pygame.draw.rect(win, (0, 255, 0), (2 + spot.x * w, 3 + spot.y * h, w - 4, h - 4))
@@ -85,9 +85,9 @@ def redrawGameWindow(win):
     # Draw current
     pygame.draw.rect(win, (255, 0, 255), (2 + current.x * w, 3 + current.y * h, w - 4, h - 4))
 
-   # Draw the path in blue
-    for spot in path:
-        pygame.draw.rect(win, (0, 0, 255), (2 + spot.x * w, 3 + spot.y * h, w - 4, h - 4))
+    # Draw the path in blue
+    for spot in total_path:
+        pygame.draw.rect(win, (0, 0, 255), (2 + spot.x * w, 3 + spot.y * h, w - 4, h - 4))    
 
     # Draw Obstacles
     for spot in obstacles:
@@ -120,20 +120,37 @@ for x, y in zip(obstalce_x, obstacle_y):
     spots[int(x)][int(y)].obstacle = True
     obstacles.append(spots[int(x)][int(y)])
 
-OpenSet = []
-closedSet = []
-
-start = spots[21][20]
-end = spots[2][28]
+X_references = []
+Y_references = []
+points_to_go = [(21, 20), (28, 28),(28, 8), (13, 6)]
 path = []
-OpenSet.append(start)
-current = start
+total_path = []
+direction_changed = []
+z = 0
+z_changed = True
 
 gaming = True
 while gaming:
+    if z_changed:
+        OpenSet = []
+        closedSet = []
+        start = spots[points_to_go[z][0]][points_to_go[z][1]]
+        end = spots[points_to_go[z + 1][0]][points_to_go[z + 1][1]]
+        OpenSet.append(start)
+        current = start
+        z_changed = False
+        spots = [[Spot(i, j) for j in range(rows)] for i in range(cols)]
+        for i in range(len(spots)):
+            for j in range(len(spots[i])):
+                spots[i][j].addNeighbors(spots)
+        for x, y in zip(obstalce_x, obstacle_y):
+            spots[int(x)][int(y)].obstacle = True
+            obstacles.append(spots[int(x)][int(y)])
+
     clock.tick(12)
     #Find the path
     temp = current
+    path = []
     path.append(temp)
     #As long as the temp has a previous
     while temp.previous:
@@ -169,10 +186,18 @@ while gaming:
             while temp.previous:
                 current = temp
                 path.append(temp.previous)
+                total_path.append(temp.previous)
                 temp = temp.previous
-            system('cls')
+            for spot in reversed(path):
+                    X_references.append((spot.y - points_to_go[0][1]) * 0.178)
+                    Y_references.append((spot.x - points_to_go[0][0]) * 0.178)
+            direction_changed.append(len(X_references))
             print('Finish!')
-            gaming = False
+            z += 1
+            z_changed = True
+            if z == len(points_to_go) - 1:
+                gaming = False
+        
         try:
             OpenSet.remove(current)
         except ValueError as e:
@@ -185,9 +210,6 @@ while gaming:
         for neighbor in neighbors:
             if not(neighbor in closedSet)  and not(neighbor.obstacle): # ceck if neighbor is available to visit
                 temp = current.g + heuristic(neighbor, current)
-
-                newpath = False
-
                 if not(neighbor in OpenSet):
                     OpenSet.append(neighbor)
                 elif temp >= neighbor.g:
@@ -210,19 +232,18 @@ while gaming:
 pygame.image.save(screen, '/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba2.png')
 
 """ Once the Path finder algoritm ends, export the path for the turtlebot to follow """
-X_references = []
-Y_references = []
-for spot in reversed(path):
-    X_references.append((spot.y - start.y) * 0.178)
-    Y_references.append((spot.x - start.x) * 0.178)
-
 x_followed = []
 y_followed = []
+goal_zs = []
+from math import atan2
+for i in range(len(X_references) - 1):
+    goal_zs.append(atan2(Y_references[i + 1] - Y_references[i],X_references[i + 1] - X_references[i])) 
+goal_zs.append(goal_zs[-1])
 
 import rospy
 from geometry_msgs.msg import Twist, Point, Quaternion
 import tf
-from math import radians, copysign, sqrt, pow, pi, atan2
+from math import radians, copysign, sqrt, pow, pi
 from tf.transformations import euler_from_quaternion
 import numpy as np
 import matplotlib.pyplot as plt
@@ -260,8 +281,15 @@ class GotoPoint():
             angular_speed = 1
             goal_x = X_references[i]
             goal_y = Y_references[i]
+            goal_z = goal_zs[i]
             goal_distance = sqrt(pow(goal_x - position.x, 2) + pow(goal_y - position.y, 2))
             distance = goal_distance
+            changepathflag = 0
+
+            print """------------------------------
+            siguiente punto:
+            %s, %s
+            """ % (goal_x, goal_y)
 
             while distance > 0.05:
                 (position, rotation) = self.get_odom()
@@ -292,6 +320,25 @@ class GotoPoint():
                 self.cmd_vel.publish(move_cmd)
                 r.sleep()
             (position, rotation) = self.get_odom()
+
+            while abs(rotation - goal_z) > 0.016:
+                (position, rotation) = self.get_odom()
+                if goal_z >= 0:
+                    if rotation <= goal_z and rotation >= goal_z - pi:
+                        move_cmd.linear.x = 0.00
+                        move_cmd.angular.z = 0.5
+                    else:
+                        move_cmd.linear.x = 0.00
+                        move_cmd.angular.z = -0.5
+                else:
+                    if rotation <= goal_z + pi and rotation > goal_z:
+                        move_cmd.linear.x = 0.00
+                        move_cmd.angular.z = -0.5
+                    else:
+                        move_cmd.linear.x = 0.00
+                        move_cmd.angular.z = 0.5
+                self.cmd_vel.publish(move_cmd)
+                r.sleep()
 
         self.cmd_vel.publish(Twist())
         fig = plt.figure()
