@@ -134,6 +134,7 @@ while gaming:
     clock.tick(12)
     #Find the path
     temp = current
+    path = []
     path.append(temp)
     #As long as the temp has a previous
     while temp.previous:
@@ -170,6 +171,8 @@ while gaming:
                 current = temp
                 path.append(temp.previous)
                 temp = temp.previous
+            del(path[-1])
+            del(path[-1])
             system('cls')
             print('Finish!')
             gaming = False
@@ -213,8 +216,8 @@ pygame.image.save(screen, '/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prue
 X_references = []
 Y_references = []
 for spot in reversed(path):
-    X_references.append((spot.y - start.y) * 0.178)
-    Y_references.append((spot.x - start.x) * 0.178)
+    X_references.append((spot.y -20) * 0.178)
+    Y_references.append((spot.x - 21) * 0.178)
 
 x_followed = []
 y_followed = []
@@ -250,6 +253,12 @@ class GotoPoint():
                 rospy.signal_shutdown("tf Exception")
         
         for i in range(len(X_references)):
+
+            print """----------------------------------
+            Going To point:
+            %s, %s
+            """ % (X_references[i], Y_references[i])
+
             (position, rotation) = self.get_odom()
             
             x_followed.append(position.y)
@@ -301,8 +310,8 @@ class GotoPoint():
         plt.xlabel('X - Coordinates', fontsize=18)
         plt.ylabel('Y - Coordinates', fontsize=18)
         ax = plt.gca()
-        #ax.set_ylim([0, 5.7])
-        #ax.set_xlim([0, 5.7])
+        ax.set_ylim([-1.462,3.738])
+        ax.set_xlim([-3.56, 2.14])
         plt.show()
         fig.savefig('/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba1.png')
 
