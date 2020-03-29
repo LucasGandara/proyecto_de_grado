@@ -48,6 +48,14 @@ class Spot(object):
             self.Neighbors.append(spots[self.x][self.y - 1])
         if self.y < (rows - 1):
             self.Neighbors.append(spots[self.x][self.y + 1])
+        if self.x > 0 and self.y > 0:
+            self.Neighbors.append(spots[self.x - 1][self.y - 1])
+        if self.x < cols - 1 and self.y > 0:
+            self.Neighbors.append(spots[self.x + 1][self.y - 1])
+        if self.x > 0 and self.y < rows - 1:
+            self.Neighbors.append(spots[self.x - 1][self.y + 1])
+        if self.x < cols - 1 and self.y < rows - 1:
+            self.Neighbors.append(spots[self.x + 1][self.y + 1])
 
     def Isover(self):
         if pos[0] > self.x and pos[0] < self.x + self.width:
@@ -87,7 +95,7 @@ def redrawGameWindow(win):
 
     # Draw start and end spot!
     pygame.draw.rect(win, (255, 255, 255), (start.x * w, 1 + start.y * h, w, h))
-    pygame.draw.rect(win, (0, 204, 0), (end.x * w, 1 + end.y * h, w, h))
+    pygame.draw.rect(win, (198, 252, 3), (end.x * w, 1 + end.y * h, w, h))
 
     pygame.display.update()
 
@@ -107,7 +115,6 @@ for pair in obstacle_list:
     pair2 = pair.split(',')
     obstalce_x.append(int(pair2[0]))
     obstacle_y.append(int(pair2[1]))
-print(obstalce_x, obstacle_y)
 
 for x, y in zip(obstalce_x, obstacle_y):
     spots[int(x)][int(y)].obstacle = True
@@ -116,8 +123,9 @@ for x, y in zip(obstalce_x, obstacle_y):
 OpenSet = []
 closedSet = []
 
-start = spots[15][12]
-end = spots[4][28]
+start = spots[21][20]
+end = spots[2][28]
+path = []
 OpenSet.append(start)
 current = start
 
@@ -125,7 +133,6 @@ gaming = True
 while gaming:
     clock.tick(12)
     #Find the path
-    path = []
     temp = current
     path.append(temp)
     #As long as the temp has a previous
@@ -145,8 +152,14 @@ while gaming:
         for i in range(len(OpenSet)):
             if OpenSet[i].f < OpenSet[winner].f:
                 winner = i
-                
-        current = OpenSet[winner] 
+
+            if OpenSet[i].f == OpenSet[winner].f:
+                if OpenSet[i].g > OpenSet[winner].g:
+                    winner = i
+
+        current = OpenSet[winner]
+        lastCheckedNode = current
+
         if current == end:
             #Find the path
             path = []
@@ -160,7 +173,6 @@ while gaming:
             system('cls')
             print('Finish!')
             gaming = False
-            pygame.image.save(screen, '/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/screenshot.png')
         try:
             OpenSet.remove(current)
         except ValueError as e:
@@ -172,21 +184,20 @@ while gaming:
         neighbors = current.Neighbors
         for neighbor in neighbors:
             if not(neighbor in closedSet)  and not(neighbor.obstacle): # ceck if neighbor is available to visit
-                temp = current.g + 1
+                temp = current.g + heuristic(neighbor, current)
 
-                if neighbor in OpenSet:
-                    if temp < neighbor.g:
-                        neighbor.g = temp
-                else:
-                    newpath = True
-                    neighbor.g = temp
+                newpath = False
+
+                if not(neighbor in OpenSet):
                     OpenSet.append(neighbor)
-        
-                neighbor.previous = current
-            # We aply Heuristics
-            if newpath:
+                elif temp >= neighbor.g:
+                        continue
+
+                neighbor.g = temp
                 neighbor.h = heuristic(neighbor, end)
                 neighbor.f = neighbor.g + neighbor.h
+
+                neighbor.previous = current                
             
     else:
         # No solution
@@ -196,13 +207,17 @@ while gaming:
 
     redrawGameWindow(screen)
 
+pygame.image.save(screen, '/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba2.png')
 
 """ Once the Path finder algoritm ends, export the path for the turtlebot to follow """
 X_references = []
 Y_references = []
-for spot in path:
+for spot in reversed(path):
     X_references.append((spot.y - start.y) * 0.178)
     Y_references.append((spot.x - start.x) * 0.178)
+
+x_followed = []
+y_followed = []
 
 import rospy
 from geometry_msgs.msg import Twist, Point, Quaternion
@@ -210,6 +225,7 @@ import tf
 from math import radians, copysign, sqrt, pow, pi, atan2
 from tf.transformations import euler_from_quaternion
 import numpy as np
+import matplotlib.pyplot as plt
 
 class GotoPoint():
     def __init__(self):
@@ -235,6 +251,10 @@ class GotoPoint():
         
         for i in range(len(X_references)):
             (position, rotation) = self.get_odom()
+            
+            x_followed.append(position.y)
+            y_followed.append(-1 * position.x)
+
             last_rotation = 0
             linear_speed = 1
             angular_speed = 1
@@ -274,6 +294,17 @@ class GotoPoint():
             (position, rotation) = self.get_odom()
 
         self.cmd_vel.publish(Twist())
+        fig = plt.figure()
+        plt.plot(x_followed, y_followed)
+        plt.title('Prueba 1')
+        fig.suptitle('desplazamiento del robot durante la ejecucion', fontsize=20)
+        plt.xlabel('X - Coordinates', fontsize=18)
+        plt.ylabel('Y - Coordinates', fontsize=18)
+        ax = plt.gca()
+        #ax.set_ylim([0, 5.7])
+        #ax.set_xlim([0, 5.7])
+        plt.show()
+        fig.savefig('/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba1.png')
 
     def getkey(self):
         x, y, z = raw_input("| x | y | z |\n").split()
