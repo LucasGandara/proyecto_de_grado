@@ -122,7 +122,7 @@ for x, y in zip(obstalce_x, obstacle_y):
 
 X_references = []
 Y_references = []
-points_to_go = [(21, 20), (28, 28),(28, 8), (13, 6)]
+points_to_go = [(21, 20), (28, 28),(2, 28), (13, 6), (26,8)]
 path = []
 total_path = []
 direction_changed = []
