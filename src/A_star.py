@@ -123,8 +123,8 @@ for x, y in zip(obstalce_x, obstacle_y):
 OpenSet = []
 closedSet = []
 
-start = spots[21][20]
-end = spots[2][28]
+start = spots[2][28]
+end = spots[28][28]
 path = []
 OpenSet.append(start)
 current = start
@@ -230,7 +230,7 @@ from tf.transformations import euler_from_quaternion
 import numpy as np
 import matplotlib.pyplot as plt
 
-class GotoPoint():
+class A_star():
     def __init__(self):
         rospy.init_node('A_Star_Path_Pinder', anonymous=False)
         rospy.on_shutdown(self.shutdown)
@@ -259,7 +259,7 @@ class GotoPoint():
             %s, %s
             """ % (X_references[i], Y_references[i])
 
-            (position, rotation) = self.get_odom()
+            (position, orientation) = self.get_odom()
             
             x_followed.append(position.y)
             y_followed.append(-1 * position.x)
@@ -273,21 +273,12 @@ class GotoPoint():
             distance = goal_distance
 
             while distance > 0.05:
-                (position, rotation) = self.get_odom()
+                (position, orientation) = self.get_odom()
                 x_start = position.x
                 y_start = position.y
-                path_angle = atan2(goal_y - y_start, goal_x- x_start)
+                errror_teta = atan2(goal_y - y_start, goal_x- x_start)
 
-                if path_angle < -pi/4 or path_angle > pi/4:
-                    if goal_y < 0 and y_start < goal_y:
-                        path_angle = -2*pi + path_angle
-                    elif goal_y >= 0 and y_start > goal_y:
-                        path_angle = 2*pi + path_angle
-                if last_rotation > pi-0.1 and rotation <= 0:
-                    rotation = 2*pi + rotation
-                elif last_rotation < -pi+0.1 and rotation > 0:
-                    rotation = -2*pi + rotation
-                move_cmd.angular.z = angular_speed * path_angle-rotation
+                move_cmd.angular.z = angular_speed * errror_teta-orientation
 
                 distance = sqrt(pow((goal_x - x_start), 2) + pow((goal_y - y_start), 2))
                 move_cmd.linear.x = min(linear_speed * distance, 0.1)
@@ -297,10 +288,10 @@ class GotoPoint():
                 else:
                     move_cmd.angular.z = max(move_cmd.angular.z, -1.5)
 
-                last_rotation = rotation
+                last_rotation = orientation
                 self.cmd_vel.publish(move_cmd)
                 r.sleep()
-            (position, rotation) = self.get_odom()
+            (position, orientation) = self.get_odom()
 
         self.cmd_vel.publish(Twist())
         fig = plt.figure()
@@ -315,13 +306,6 @@ class GotoPoint():
         plt.show()
         fig.savefig('/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba1.png')
 
-    def getkey(self):
-        x, y, z = raw_input("| x | y | z |\n").split()
-        if x == 's':
-            self.shutdown()
-        x, y, z = [float(x), float(y), float(z)]
-        return x, y, z
-
     def get_odom(self):
         try:
             (trans, rot) = self.tf_listener.lookupTransform(self.odom_frame, self.base_frame, rospy.Time(0))
@@ -334,7 +318,8 @@ class GotoPoint():
         return (Point(*trans), rotation[2])
 
     def shutdown(self):
+        """ When the node closes, stop the robot"""
         self.cmd_vel.publish(Twist())
         rospy.sleep(1)
 
-GotoPoint()
+A_star()
