@@ -94,8 +94,10 @@ def redrawGameWindow(win):
         pygame.draw.rect(win, (255, 255, 102), (2 + spot.x * w, 3 + spot.y * h, w - 4, h - 4))
 
     # Draw start and end spot!
-    pygame.draw.rect(win, (255, 255, 255), (start.x * w, 1 + start.y * h, w, h))
-    pygame.draw.rect(win, (198, 252, 3), (end.x * w, 1 + end.y * h, w, h))
+    for z in range(len(points_to_go)):
+        start = spots[points_to_go[z][0]][points_to_go[z][1]]
+        pygame.draw.rect(win, (255, 255, 255), (start.x * w, 1 + start.y * h, w, h))
+    pygame.draw.rect(win, (255, 130, 41), (end.x * w, 1 + end.y * h, w, h))
 
     pygame.display.update()
 
@@ -122,7 +124,7 @@ for x, y in zip(obstalce_x, obstacle_y):
 
 X_references = []
 Y_references = []
-points_to_go = [(21, 20), (28, 28),(2, 28), (13, 6), (26,8)]
+points_to_go = [(28, 28), (26,8)]
 path = []
 total_path = []
 direction_changed = []
@@ -189,10 +191,10 @@ while gaming:
                 total_path.append(temp.previous)
                 temp = temp.previous
             for spot in reversed(path):
-                    X_references.append((spot.y - points_to_go[0][1]) * 0.178)
-                    Y_references.append((spot.x - points_to_go[0][0]) * 0.178)
+                    X_references.append(round((spot.y - 20) * 0.178, 5))
+                    Y_references.append(round((spot.x - 21) * 0.178, 5))
             direction_changed.append(len(X_references))
-            print('Finish!')
+            print('Finish %s path!' % (z + 1))
             z += 1
             z_changed = True
             if z == len(points_to_go) - 1:
@@ -248,11 +250,11 @@ from tf.transformations import euler_from_quaternion
 import numpy as np
 import matplotlib.pyplot as plt
 
-class GotoPoint():
+class A_star():
     def __init__(self):
-        rospy.init_node('A_Star_Path_Pinder', anonymous=False)
+        rospy.init_node('A_Star_Path_Finder', anonymous=False)
         rospy.on_shutdown(self.shutdown)
-        self.cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
+        self.cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=1000)
         position = Point()
         move_cmd = Twist()
         r = rospy.Rate(10)
@@ -271,7 +273,7 @@ class GotoPoint():
                 rospy.signal_shutdown("tf Exception")
         
         for i in range(len(X_references)):
-            (position, rotation) = self.get_odom()
+            (position, orientation) = self.get_odom()
             
             x_followed.append(position.y)
             y_followed.append(-1 * position.x)
@@ -292,21 +294,21 @@ class GotoPoint():
             """ % (goal_x, goal_y)
 
             while distance > 0.05:
-                (position, rotation) = self.get_odom()
+                (position, orientation) = self.get_odom()
                 x_start = position.x
                 y_start = position.y
-                path_angle = atan2(goal_y - y_start, goal_x- x_start)
+                error_teta = atan2(goal_y - y_start, goal_x- x_start)
 
-                if path_angle < -pi/4 or path_angle > pi/4:
+                if error_teta < -pi/4 or error_teta > pi/4:
                     if goal_y < 0 and y_start < goal_y:
-                        path_angle = -2*pi + path_angle
+                        error_teta = -2*pi + error_teta
                     elif goal_y >= 0 and y_start > goal_y:
-                        path_angle = 2*pi + path_angle
-                if last_rotation > pi-0.1 and rotation <= 0:
-                    rotation = 2*pi + rotation
-                elif last_rotation < -pi+0.1 and rotation > 0:
-                    rotation = -2*pi + rotation
-                move_cmd.angular.z = angular_speed * path_angle-rotation
+                        error_teta = 2*pi + error_teta
+                if last_rotation > pi-0.1 and orientation <= 0:
+                    orientation = 2*pi + orientation
+                elif last_rotation < -pi+0.1 and orientation > 0:
+                    orientation = -2*pi + orientation
+                move_cmd.angular.z = angular_speed * error_teta-orientation
 
                 distance = sqrt(pow((goal_x - x_start), 2) + pow((goal_y - y_start), 2))
                 move_cmd.linear.x = min(linear_speed * distance, 0.1)
@@ -316,32 +318,13 @@ class GotoPoint():
                 else:
                     move_cmd.angular.z = max(move_cmd.angular.z, -1.5)
 
-                last_rotation = rotation
+                last_rotation = orientation
                 self.cmd_vel.publish(move_cmd)
                 r.sleep()
-            (position, rotation) = self.get_odom()
-
-            while abs(rotation - goal_z) > 0.016:
-                (position, rotation) = self.get_odom()
-                if goal_z >= 0:
-                    if rotation <= goal_z and rotation >= goal_z - pi:
-                        move_cmd.linear.x = 0.00
-                        move_cmd.angular.z = 0.5
-                    else:
-                        move_cmd.linear.x = 0.00
-                        move_cmd.angular.z = -0.5
-                else:
-                    if rotation <= goal_z + pi and rotation > goal_z:
-                        move_cmd.linear.x = 0.00
-                        move_cmd.angular.z = -0.5
-                    else:
-                        move_cmd.linear.x = 0.00
-                        move_cmd.angular.z = 0.5
-                self.cmd_vel.publish(move_cmd)
-                r.sleep()
+            (position, orientation) = self.get_odom()
 
         self.cmd_vel.publish(Twist())
-        fig = plt.figure()
+        fig = plt.sofigure()
         plt.plot(x_followed, y_followed)
         plt.title('Prueba 1')
         fig.suptitle('desplazamiento del robot durante la ejecucion', fontsize=20)
@@ -352,13 +335,6 @@ class GotoPoint():
         #ax.set_xlim([0, 5.7])
         plt.show()
         fig.savefig('/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba1.png')
-
-    def getkey(self):
-        x, y, z = raw_input("| x | y | z |\n").split()
-        if x == 's':
-            self.shutdown()
-        x, y, z = [float(x), float(y), float(z)]
-        return x, y, z
 
     def get_odom(self):
         try:
@@ -375,4 +351,4 @@ class GotoPoint():
         self.cmd_vel.publish(Twist())
         rospy.sleep(1)
 
-GotoPoint()
+A_star()
