@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="proyecto_de_grado" type="obstacle_localization.py" name="path_and_localization" output="screen" />
+</launch>

@@ -33,7 +33,7 @@ def get_odometry(msg):
     burger_pose['y'] = msg.pose.pose.position.y
 
 ROS.Subscriber('/odom', Odometry, get_odometry)
-print 'Initialiting odom_listener topic'
+ROS.loginfo('Initialiting odom_listener topic') 
 
 tqdm_bar = tqdm(total=20)
 while (end - start) <= 20:

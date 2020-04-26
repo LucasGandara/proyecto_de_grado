@@ -6,15 +6,16 @@ States:
     closed set: all the nodes that have finished been evaluated
 """
 import pygame
-from pygame import QUIT
+from pygame.locals import QUIT
 import sys
 from math import  hypot
 from os import system
+import subprocess
 pygame.init()
 
 WIDTH = 650
 HEIGHT = 500
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+path_screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("A* Algorithm")
 clock = pygame.time.Clock()
 obstacles = []
@@ -123,8 +124,8 @@ for x, y in zip(obstalce_x, obstacle_y):
 OpenSet = []
 closedSet = []
 
-start = spots[28][3]
-end = spots[2][28]
+start = spots[29][3]
+end = spots[20][20]
 path = []
 OpenSet.append(start)
 current = start
@@ -172,7 +173,6 @@ while gaming:
                 path.append(temp.previous)
                 temp = temp.previous
             del(path[-1])
-            del(path[-1])
             system('cls')
             print('Finish!')
             gaming = False
@@ -208,31 +208,37 @@ while gaming:
         gaming = False
         pass
 
-    redrawGameWindow(screen)
+    redrawGameWindow(path_screen)
 
-pygame.image.save(screen, '/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba2.png')
+pygame.image.save(path_screen, '/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba2.png')
+
+# Show saved image
+subprocess.call(['xdg-open', '/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba2.png'])
 
 """ Once the Path finder algoritm ends, export the path for the turtlebot to follow """
 X_references = []
 Y_references = []
 for spot in reversed(path):
-    X_references.append((spot.y - 3) * 0.178)
-    Y_references.append((spot.x - 28) * 0.178)
+    X_references.append((spot.y - start.y) * 0.178)
+    Y_references.append((spot.x - start.x) * 0.178)
 
 x_followed = []
 y_followed = []
 
 import rospy
 from geometry_msgs.msg import Twist, Point, Quaternion
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import LaserScan
 import tf
-from math import radians, copysign, sqrt, pow, pi, atan2
+from math import radians, copysign, sqrt, pow, pi, atan2, sin, cos
 from tf.transformations import euler_from_quaternion
 import numpy as np
 import matplotlib.pyplot as plt
 
 class A_star():
+
     def __init__(self):
-        rospy.init_node('A_Star_Path_Pinder', anonymous=False)
+        rospy.init_node('path_and_localization', anonymous=False)
         rospy.on_shutdown(self.shutdown)
         self.cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
         position = Point()
@@ -240,7 +246,16 @@ class A_star():
         r = rospy.Rate(10)
         self.tf_listener = tf.TransformListener()
         self.odom_frame = 'odom'
-
+        localization_screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("Localization Algorithm")
+        detected_obstacles = []
+        self.burger_orientation = [0, 0, 0, 0]
+        self.TETA = 0
+        self.laser = [0 for i in range(360)]
+        self.robot_track = [] # Positions where the robot have been
+        rospy.Subscriber('/scan', LaserScan, self.get_laser, queue_size=1)
+        rospy.Subscriber("/odom", Odometry , self.get_theta, queue_size=1)
+        
         try:
             self.tf_listener.waitForTransform(self.odom_frame, 'base_footprint', rospy.Time(), rospy.Duration(1.0))
             self.base_frame = 'base_footprint'
@@ -291,6 +306,9 @@ class A_star():
                 last_rotation = orientation
                 self.cmd_vel.publish(move_cmd)
                 r.sleep()
+
+                self.redrawGameWindow(localization_screen)
+
             (position, orientation) = self.get_odom()
 
         self.cmd_vel.publish(Twist())
@@ -301,8 +319,8 @@ class A_star():
         plt.xlabel('X - Coordinates', fontsize=18)
         plt.ylabel('Y - Coordinates', fontsize=18)
         ax = plt.gca()
-        ax.set_ylim([-1.462,3.738])
-        ax.set_xlim([-3.56, 2.14])
+        ax.set_ylim([0.534, -4.984])
+        ax.set_xlim([-5.162, 0.356])
         plt.show()
         fig.savefig('/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba1.png')
 
@@ -315,11 +333,65 @@ class A_star():
             rospy.loginfo("TF Exception")
             return
 
+        #rospy.loginfo('Orientacion actual: %s' % rotation[0])
+
         return (Point(*trans), rotation[2])
+
+    def get_laser(self, msg):
+        self.laser = msg.ranges
+
+    def get_theta(self, msg):
+        """ This function its only to calculate the orientation of the robot in degrees"""
+        self.burger_orientation[0] = msg.pose.pose.orientation.x
+        self.burger_orientation[1] = msg.pose.pose.orientation.y
+        self.burger_orientation[2] = msg.pose.pose.orientation.z
+        self.burger_orientation[3] = msg.pose.pose.orientation.w
+
+        euler = euler_from_quaternion(self.burger_orientation)
+        self.TETA = euler[2]
+        #rospy.loginfo('Orientacion actual: %s' % np.rad2deg(self.TETA))
 
     def shutdown(self):
         """ When the node closes, stop the robot"""
         self.cmd_vel.publish(Twist())
         rospy.sleep(1)
+    
+    def redrawGameWindow(self, win):
+        pygame.draw.rect(win, (0, 0, 0), (0, 0, WIDTH, HEIGHT))
+
+        (position, _) = self.get_odom()
+
+        #Dibujar la grilla
+        for i in range(cols):
+            for j in range(rows):
+                pygame.draw.rect(win, (0, 0, 255), (spots[i][j].x * w, 1 + spots[i][j].y * h, w, h), 1)
+        
+        # Draw the actual position in grid of the robot
+        # xr: actual position x of the robot; yr: actual position y of the robot
+        xr = start.x + (position.y // 0.178)
+        yr = start.y + (position.x // 0.178)
+        self.robot_track.append([xr, yr])
+        
+        for point in self.robot_track:
+            if point == self.robot_track[-1]:
+                pygame.draw.rect(win, (255, 0, 255), (point[0] * w + 2, 3 + point[1] * h, (w - 3), (h - 3)), 0)
+            else:
+                pygame.draw.rect(win, (102, 255, 102), (point[0] * w + 2, 3 + point[1] * h, (w - 3), (h - 3)), 0)
+
+        rospy.loginfo('Xr: %s' % xr)
+        rospy.loginfo('Yr: %s' % yr)
+        rospy.loginfo('------')
+
+        # Calculo de los obstáculos
+        # xo = position x of the obstacle, yo = position y of the obstacle
+        for i, laser_distance in enumerate(self.laser):
+            if laser_distance != float('inf'):
+                xo = position.x + laser_distance * cos(self.TETA + i)
+                yo = position.y + laser_distance * sin(self.TETA + i)
+
+                xo_in_grid = start.x + (xo // 0.178)
+                yo_in_grid = start.y + (yo // 0.178)
+
+        pygame.display.update()
 
 A_star()

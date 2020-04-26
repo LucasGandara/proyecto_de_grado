@@ -1,8 +1,9 @@
 <launch>
     <!-- gazebo launch with empty world and loading the new model we have created-->
    <include file ="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find proyecto_de_grado)/world/lab_robotica.world"/>  
+    <arg name="world_name" value="$(find proyecto_de_grado)/world/lab_robotica2.world"/>  
    </include>
+
    <!-- uploading urdf robot model into parameter server -->
    <param name="robot_description" command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_burger.urdf.xacro"/>  
 
