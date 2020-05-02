@@ -5,7 +5,8 @@ import rospy as ROS
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
-    
+import numpy as np
+
 class Show_orientation():
     
     def __init__(self):
@@ -17,7 +18,7 @@ class Show_orientation():
         self.burger_orientation = [0, 0, 0, 0]
         # Odometry subscriber
         ROS.Subscriber("/odom", Odometry, self.get_odometry)
-        zROS.spin()
+        ROS.spin()
 
     def get_odometry(self, msg):
         """ Read the value from /odom topic"""

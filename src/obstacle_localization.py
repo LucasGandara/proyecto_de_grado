@@ -18,6 +18,7 @@ HEIGHT = 500
 path_screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("A* Algorithm")
 clock = pygame.time.Clock()
+walls = []
 obstacles = []
 
 # How many columns and rows?
@@ -90,9 +91,13 @@ def redrawGameWindow(win):
     for spot in path:
         pygame.draw.rect(win, (0, 0, 255), (2 + spot.x * w, 3 + spot.y * h, w - 4, h - 4))
 
-    # Draw Obstacles
-    for spot in obstacles:
+    # Draw Wall
+    for spot in walls:
         pygame.draw.rect(win, (255, 255, 102), (2 + spot.x * w, 3 + spot.y * h, w - 4, h - 4))
+
+    # Draw obstacles
+    for spot in obstacles:
+        pygame.draw.rect(win, (255, 255, 40), (2 + spot.x * w, 3 + spot.y * h, w - 4, h - 4))
 
     # Draw start and end spot!
     pygame.draw.rect(win, (255, 255, 255), (start.x * w, 1 + start.y * h, w, h))
@@ -106,7 +111,22 @@ for i in range(len(spots)):
     for j in range(len(spots[i])):
         spots[i][j].addNeighbors(spots)
 
-# Definir Obstáculos
+# Definir donde están las paredes
+obstalce_x = []
+obstacle_y = []
+obstacle_file = open('/home/lucas/catkin_ws/src/proyecto_de_grado/src/Wall.txt')
+pair_coodinates = obstacle_file.read()
+obstacle_list = pair_coodinates.split('\n')
+for pair in obstacle_list:
+    pair2 = pair.split(',')
+    obstalce_x.append(int(pair2[0]))
+    obstacle_y.append(int(pair2[1]))
+
+for x, y in zip(obstalce_x, obstacle_y):
+    spots[int(x)][int(y)].obstacle = True
+    walls.append(spots[int(x)][int(y)])
+
+# Definir donde están las paredes
 obstalce_x = []
 obstacle_y = []
 obstacle_file = open('/home/lucas/catkin_ws/src/proyecto_de_grado/src/Obstacles.txt')
@@ -121,11 +141,12 @@ for x, y in zip(obstalce_x, obstacle_y):
     spots[int(x)][int(y)].obstacle = True
     obstacles.append(spots[int(x)][int(y)])
 
+
 OpenSet = []
 closedSet = []
 
 start = spots[29][3]
-end = spots[20][20]
+end = spots[3][28]
 path = []
 OpenSet.append(start)
 current = start
@@ -248,7 +269,7 @@ class A_star():
         self.odom_frame = 'odom'
         localization_screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Localization Algorithm")
-        detected_obstacles = []
+        self.detected_obstacles = []
         self.burger_orientation = [0, 0, 0, 0]
         self.TETA = 0
         self.laser = [0 for i in range(360)]
@@ -269,16 +290,13 @@ class A_star():
         
         for i in range(len(X_references)):
 
-            print """----------------------------------
-            Going To point:
-            %s, %s
-            """ % (X_references[i], Y_references[i])
+            #print """----------------------------------
+            #Going To point:
+            #%s, %s
+            #""" % (X_references[i], Y_references[i])
 
             (position, orientation) = self.get_odom()
-            
-            x_followed.append(position.y)
-            y_followed.append(-1 * position.x)
-
+        
             last_rotation = 0
             linear_speed = 1
             angular_speed = 1
@@ -288,6 +306,10 @@ class A_star():
             distance = goal_distance
 
             while distance > 0.05:
+
+                x_followed.append(position.y)
+                y_followed.append(-1 * position.x)
+
                 (position, orientation) = self.get_odom()
                 x_start = position.x
                 y_start = position.y
@@ -319,7 +341,7 @@ class A_star():
         plt.xlabel('X - Coordinates', fontsize=18)
         plt.ylabel('Y - Coordinates', fontsize=18)
         ax = plt.gca()
-        ax.set_ylim([0.534, -4.984])
+        ax.set_ylim([-4.984, 0.534])
         ax.set_xlim([-5.162, 0.356])
         plt.show()
         fig.savefig('/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/Prueba1.png')
@@ -355,7 +377,7 @@ class A_star():
         """ When the node closes, stop the robot"""
         self.cmd_vel.publish(Twist())
         rospy.sleep(1)
-    
+
     def redrawGameWindow(self, win):
         pygame.draw.rect(win, (0, 0, 0), (0, 0, WIDTH, HEIGHT))
 
@@ -367,10 +389,12 @@ class A_star():
                 pygame.draw.rect(win, (0, 0, 255), (spots[i][j].x * w, 1 + spots[i][j].y * h, w, h), 1)
         
         # Draw the actual position in grid of the robot
-        # xr: actual position x of the robot; yr: actual position y of the robot
+        # xr: actual position x of the robot in the grid; yr: actual position y of the robot in the grid
         xr = start.x + (position.y // 0.178)
         yr = start.y + (position.x // 0.178)
-        self.robot_track.append([xr, yr])
+        point2 = [xr, yr]
+        if not point2 in self.robot_track: # only append a point once
+            self.robot_track.append(point2)
         
         for point in self.robot_track:
             if point == self.robot_track[-1]:
@@ -378,19 +402,27 @@ class A_star():
             else:
                 pygame.draw.rect(win, (102, 255, 102), (point[0] * w + 2, 3 + point[1] * h, (w - 3), (h - 3)), 0)
 
-        rospy.loginfo('Xr: %s' % xr)
-        rospy.loginfo('Yr: %s' % yr)
-        rospy.loginfo('------')
+        #rospy.loginfo('Xr: %s' % xr)
+        #rospy.loginfo('Yr: %s' % yr)
+        #rospy.loginfo('------')
 
-        # Calculo de los obstáculos
+        # Get the position of the obstacles
         # xo = position x of the obstacle, yo = position y of the obstacle
         for i, laser_distance in enumerate(self.laser):
-            if laser_distance != float('inf'):
-                xo = position.x + laser_distance * cos(self.TETA + i)
-                yo = position.y + laser_distance * sin(self.TETA + i)
+            if laser_distance <= 2 and laser_distance >= 0.12:
 
-                xo_in_grid = start.x + (xo // 0.178)
-                yo_in_grid = start.y + (yo // 0.178)
+                xo = position.x + laser_distance * cos(self.TETA + np.deg2rad(i))
+                yo = position.y + laser_distance * sin(self.TETA + np.deg2rad(i))
+
+                xo_in_grid = start.x + (yo // 0.178)
+                yo_in_grid = start.y + (xo // 0.178)
+                
+                if not [xo_in_grid, yo_in_grid] in self.detected_obstacles:
+                    self.detected_obstacles.append([xo_in_grid, yo_in_grid])
+
+        # Draw the obstacles detected
+        for obstacle in self.detected_obstacles:
+            pygame.draw.rect(win, (255, 255, 102), (obstacle[0] * w + 2, 3 + obstacle[1] * h, (w - 3), (h - 3)), 0)            
 
         pygame.display.update()
 
