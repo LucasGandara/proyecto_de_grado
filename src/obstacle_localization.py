@@ -31,6 +31,7 @@ w = (WIDTH - 10) / cols
 h = (HEIGHT - 10) / rows
 path = []
 current = []
+
 class Spot(object):
     def __init__(self, x, y):
         self.f = 0
@@ -124,20 +125,22 @@ class Spot(object):
                 self.Neighbors3.append(spots[self.x + 3][self.y + 2])
                 self.Neighbors3.append(spots[self.x + 3][self.y + 3])
 
-    def isover(self, spot):
-        """ Returns True if the pos of the given spot and the current
-            spot are the same """
+    def get_list_of_neigbors(self, n=1):
+        """ Return the list of the neighbors on the given 
+            index """
+        
+        Neighbors = []
+        if n == 1:
+            for neighbor in self.Neighbors:
+                Neighbors.append([neighbor.x, neighbor.y])
+        elif n == 2:
+            for neighbor in self.Neighbors2:
+                Neighbors.append([neighbor.x, neighbor.y])
+        elif n == 3:
+            for neighbor in self.Neighbors3:
+                Neighbors.append([neighbor.x, neighbor.y])
 
-        if self.x == spot.x and spot.y == spot.y:
-            return True
-        else:
-            return False     
-
-    def Isover(self):
-        if pos[0] > self.x and pos[0] < self.x + self.width:
-            if pos[1] > self.y and pos[1] < self.y + self.height:
-                return True
-        return False
+        return Neighbors
 
 def heuristic(a, b):
     return hypot(a.x - b.x, a.y - b.y)
@@ -211,10 +214,11 @@ for pair in obstacle_list:
     obstalce_x.append(int(pair2[0]))
     obstacle_y.append(int(pair2[1]))
 
+obstacle_list = []
 for x, y in zip(obstalce_x, obstacle_y):
     spots[int(x)][int(y)].obstacle = True
     obstacles.append(spots[int(x)][int(y)])
-
+    obstacle_list.append([x, y])
 
 OpenSet = []
 closedSet = []
@@ -313,9 +317,31 @@ subprocess.call(['xdg-open', '/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/P
 """ Once the Path finder algoritm ends, export the path for the turtlebot to follow """
 X_references = []
 Y_references = []
+paht_list = []
+neighbors_list_high_risk = []
+neighbors_list_medium_risk = []
+neighbors_list_low_risk = []
+
 for spot in reversed(path):
     X_references.append((spot.y - start.y) * 0.178)
     Y_references.append((spot.x - start.x) * 0.178)
+    paht_list.append([spot.x, spot.y])
+
+    spot.addNeighbors(spots)
+    spot.addNeighbors(spots, n=2)
+    spot.addNeighbors(spots, n=3)
+
+    aux = spot.get_list_of_neigbors(n=1)
+    for neigh in aux:
+        neighbors_list_high_risk.append(neigh)
+
+    aux = spot.get_list_of_neigbors(n=2)
+    for neigh in aux:
+        neighbors_list_medium_risk.append(neigh)
+
+    aux = spot.get_list_of_neigbors(n=3)
+    for neigh in aux:
+        neighbors_list_low_risk.append(neigh)
 
 x_followed = []
 y_followed = []
@@ -345,17 +371,13 @@ class A_star():
         pygame.display.set_caption("Localization Algorithm")
         self.detected_obstacles = [Spot(0, 0)]
         self.detected_obstacles_list = []
+        self.new_obstacles = []
         self.burger_orientation = [0, 0, 0, 0]
         self.TETA = 0
         self.laser = [0 for i in range(360)]
         self.robot_track = [] # Positions where the robot have been
         rospy.Subscriber('/scan', LaserScan, self.get_laser, queue_size=1)
-        rospy.Subscriber("/odom", Odometry , self.get_theta, queue_size=1)
-        
-        for spot in path:
-            spot.addNeighbors(spots)
-            spot.addNeighbors(spots, n=2)
-            spot.addNeighbors(spots, n=3)
+        rospy.Subscriber("/odom", Odometry , self.get_theta, queue_size=1)        
 
         try:
             self.tf_listener.waitForTransform(self.odom_frame, 'base_footprint', rospy.Time(), rospy.Duration(1.0))
@@ -439,8 +461,6 @@ class A_star():
             rospy.loginfo("TF Exception")
             return
 
-        #rospy.loginfo('Orientacion actual: %s' % rotation[0])
-
         return (Point(*trans), rotation[2])
 
     def get_laser(self, msg):
@@ -463,6 +483,7 @@ class A_star():
         rospy.sleep(1)
 
     def redrawGameWindow(self, win):
+        risk_flag = False
         pygame.draw.rect(win, (0, 0, 0), (0, 0, WIDTH, HEIGHT))
 
         (position, _) = self.get_odom()
@@ -516,10 +537,46 @@ class A_star():
                 if not [xo_in_grid, yo_in_grid] in self.detected_obstacles_list:
                     self.detected_obstacles_list.append([xo_in_grid, yo_in_grid])
                     self.detected_obstacles.append(Spot(xo_in_grid, yo_in_grid))
- 
+
+        for obstacle in self.detected_obstacles_list:
+            if obstacle in obstacle_list: # Obstáculos predefinidos
+                pass
+            else:
+                if not obstacle in self.new_obstacles:
+                    self.new_obstacles.append(obstacle)
+                    risk_flag = True
+
+        # IF the obstacle is in the way, print an alert
+        for obstacle in self.new_obstacles:
+            if risk_flag:
+                if obstacle in paht_list:
+                    rospy.loginfo('Imminent Crash!!')
+                    risk_flag = False
+
+        for obstacle in self.new_obstacles:
+            if risk_flag:
+                if obstacle in neighbors_list_high_risk:
+                        rospy.loginfo('High risk of Crash!!')
+                        risk_flag = False
+
+        for obstacle in self.new_obstacles:          
+            if risk_flag:
+                if obstacle in neighbors_list_medium_risk:
+                    rospy.loginfo('Medium risk of Crash!!')
+                    risk_flag = False
+        
+        for obstacle in self.new_obstacles:
+            if risk_flag:
+                if obstacle in neighbors_list_low_risk:
+                    rospy.loginfo('low risk of Crash!!')
+                    risk_flag = False
+
         # Draw the obstacles detected
         for obstacle in self.detected_obstacles_list:
             pygame.draw.rect(win, (255, 255, 102), (obstacle[0] * w + 2, 3 + obstacle[1] * h, (w - 3), (h - 3)), 0)            
+
+        for obstacle in self.new_obstacles:
+            pygame.draw.rect(win, (222, 80, 80), (obstacle[0] * w + 2, 3 + obstacle[1] * h, (w - 3), (h - 3)), 0)
 
         pygame.display.update()
 
