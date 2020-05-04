@@ -8,6 +8,7 @@ States:
 import pygame
 from pygame.locals import QUIT
 import sys
+from datetime import datetime
 from math import  hypot
 from os import system
 import subprocess
@@ -38,26 +39,99 @@ class Spot(object):
         self.x = x # posicion x del punto en el espacio
         self.y = y # Posicion y del punto en el espacio
         self.Neighbors = []
+        self.Neighbors2 = []
+        self.Neighbors3 = []
         self.previous = None
         self.obstacle = False
+        self.color = pygame.Color(255, 255, 102)
 
-    def addNeighbors(self, spots):
-        if self.x >= 1:
-            self.Neighbors.append(spots[self.x - 1][self.y])
-        if self.x < (cols - 1):
-            self.Neighbors.append(spots[self.x + 1][self.y])
-        if self.y >= 1:
-            self.Neighbors.append(spots[self.x][self.y - 1])
-        if self.y < (rows - 1):
-            self.Neighbors.append(spots[self.x][self.y + 1])
-        if self.x > 0 and self.y > 0:
-            self.Neighbors.append(spots[self.x - 1][self.y - 1])
-        if self.x < cols - 1 and self.y > 0:
-            self.Neighbors.append(spots[self.x + 1][self.y - 1])
-        if self.x > 0 and self.y < rows - 1:
-            self.Neighbors.append(spots[self.x - 1][self.y + 1])
-        if self.x < cols - 1 and self.y < rows - 1:
-            self.Neighbors.append(spots[self.x + 1][self.y + 1])
+    def addNeighbors(self, spots, n=1):
+        if n == 1:
+            if self.x >= 1:
+                self.Neighbors.append(spots[self.x - 1][self.y])
+            if self.x < (cols - 1):
+                self.Neighbors.append(spots[self.x + 1][self.y])
+            if self.y >= 1:
+                self.Neighbors.append(spots[self.x][self.y - 1])
+            if self.y < (rows - 1):
+                self.Neighbors.append(spots[self.x][self.y + 1])
+            if self.x > 0 and self.y > 0:
+                self.Neighbors.append(spots[self.x - 1][self.y - 1])
+            if self.x < cols - 1 and self.y > 0:
+                self.Neighbors.append(spots[self.x + 1][self.y - 1])
+            if self.x > 0 and self.y < rows - 1:
+                self.Neighbors.append(spots[self.x - 1][self.y + 1])
+            if self.x < cols - 1 and self.y < rows - 1:
+                self.Neighbors.append(spots[self.x + 1][self.y + 1])
+
+        if n == 2:
+            if self.x >= 2:
+                self.Neighbors2.append(spots[self.x - 2][self.y])
+            if self.x < (cols - 2):
+                self.Neighbors2.append(spots[self.x + 2][self.y])
+            if self.y >= 2:
+                self.Neighbors2.append(spots[self.x][self.y - 2])
+            if self.y < (rows - 2):
+                self.Neighbors2.append(spots[self.x][self.y + 2])
+            if self.x > 2 and self.y > 2:
+                self.Neighbors2.append(spots[self.x - 1][self.y - 2])
+                self.Neighbors2.append(spots[self.x - 2][self.y - 1])
+                self.Neighbors2.append(spots[self.x - 2][self.y - 2])
+            if self.x < cols - 2 and self.y > 1:
+                self.Neighbors2.append(spots[self.x + 2][self.y - 1])
+                self.Neighbors2.append(spots[self.x + 2][self.y - 2])
+                self.Neighbors2.append(spots[self.x + 1][self.y - 2])
+            if self.x > 1 and self.y < rows - 2:
+                self.Neighbors2.append(spots[self.x - 1][self.y + 2])
+                self.Neighbors2.append(spots[self.x - 2][self.y + 1])
+                self.Neighbors2.append(spots[self.x - 2][self.y + 2])
+            if self.x < cols - 2 and self.y < rows - 2:
+                self.Neighbors2.append(spots[self.x + 1][self.y + 2])
+                self.Neighbors2.append(spots[self.x + 2][self.y + 2])
+                self.Neighbors2.append(spots[self.x + 2][self.y + 1])
+
+        if n == 3:
+            if self.x >= 2:
+                self.Neighbors3.append(spots[self.x - 3][self.y])
+            if self.x < (cols - 3):
+                self.Neighbors3.append(spots[self.x + 3][self.y])
+            if self.y >= 2:
+                self.Neighbors3.append(spots[self.x][self.y - 3])
+            if self.y < (rows - 2):
+                self.Neighbors3.append(spots[self.x][self.y + 3])
+            if self.x > 3 and self.y > 3:
+                self.Neighbors3.append(spots[self.x - 1][self.y - 3])
+                self.Neighbors3.append(spots[self.x - 3][self.y - 1])
+                self.Neighbors3.append(spots[self.x - 3][self.y - 2])
+                self.Neighbors3.append(spots[self.x - 2][self.y - 3])
+                self.Neighbors3.append(spots[self.x - 3][self.y - 3])
+            if self.x < cols - 3 and self.y > 2:
+                self.Neighbors3.append(spots[self.x + 3][self.y - 1])
+                self.Neighbors3.append(spots[self.x + 3][self.y - 2])
+                self.Neighbors3.append(spots[self.x + 1][self.y - 3])
+                self.Neighbors3.append(spots[self.x + 2][self.y - 3])
+                self.Neighbors3.append(spots[self.x + 3][self.y - 3])
+            if self.x > 3 and self.y < rows - 3:
+                self.Neighbors3.append(spots[self.x - 1][self.y + 3])
+                self.Neighbors3.append(spots[self.x - 3][self.y + 1])
+                self.Neighbors3.append(spots[self.x - 3][self.y + 2])
+                self.Neighbors3.append(spots[self.x - 2][self.y + 3])
+                self.Neighbors3.append(spots[self.x - 3][self.y + 3])
+            if self.x < cols - 3 and self.y < rows - 3:
+                self.Neighbors3.append(spots[self.x + 1][self.y + 3])
+                self.Neighbors3.append(spots[self.x + 2][self.y + 3])
+                self.Neighbors3.append(spots[self.x + 3][self.y + 1])
+                self.Neighbors3.append(spots[self.x + 3][self.y + 2])
+                self.Neighbors3.append(spots[self.x + 3][self.y + 3])
+
+    def isover(self, spot):
+        """ Returns True if the pos of the given spot and the current
+            spot are the same """
+
+        if self.x == spot.x and spot.y == spot.y:
+            return True
+        else:
+            return False     
 
     def Isover(self):
         if pos[0] > self.x and pos[0] < self.x + self.width:
@@ -269,7 +343,8 @@ class A_star():
         self.odom_frame = 'odom'
         localization_screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Localization Algorithm")
-        self.detected_obstacles = []
+        self.detected_obstacles = [Spot(0, 0)]
+        self.detected_obstacles_list = []
         self.burger_orientation = [0, 0, 0, 0]
         self.TETA = 0
         self.laser = [0 for i in range(360)]
@@ -277,6 +352,11 @@ class A_star():
         rospy.Subscriber('/scan', LaserScan, self.get_laser, queue_size=1)
         rospy.Subscriber("/odom", Odometry , self.get_theta, queue_size=1)
         
+        for spot in path:
+            spot.addNeighbors(spots)
+            spot.addNeighbors(spots, n=2)
+            spot.addNeighbors(spots, n=3)
+
         try:
             self.tf_listener.waitForTransform(self.odom_frame, 'base_footprint', rospy.Time(), rospy.Duration(1.0))
             self.base_frame = 'base_footprint'
@@ -333,6 +413,10 @@ class A_star():
 
             (position, orientation) = self.get_odom()
 
+        # Save the final robot track
+        now = datetime.now().strftime("%H:%M:%S").replace(':', '_')
+        pygame.image.save(path_screen, '/home/lucas/catkin_ws/src/proyecto_de_grado/detection_trials/full_robot_track_at_' + now + '.png')
+
         self.cmd_vel.publish(Twist())
         fig = plt.figure()
         plt.plot(x_followed, y_followed)
@@ -387,7 +471,23 @@ class A_star():
         for i in range(cols):
             for j in range(rows):
                 pygame.draw.rect(win, (0, 0, 255), (spots[i][j].x * w, 1 + spots[i][j].y * h, w, h), 1)
+
+        # Draw the preview of the path
+        for spot in path:
+            for neighbor in spot.Neighbors3:
+                pygame.draw.rect(win, (255, 255, 255), (neighbor.x * w + 2, 3 + neighbor.y * h, (w - 3), (h - 3)), 0)
+
+        for spot in path:
+            for neighbor in spot.Neighbors2:
+                pygame.draw.rect(win, (170, 255, 170), (neighbor.x * w + 2, 3 + neighbor.y * h, (w - 3), (h - 3)), 0)
         
+        for spot in path:
+            for neighbor in spot.Neighbors:
+                pygame.draw.rect(win, (100, 255, 100), (neighbor.x * w + 2, 3 + neighbor.y * h, (w - 3), (h - 3)), 0)
+
+        for spot in path:
+            pygame.draw.rect(win, (0, 255, 0), (spot.x * w + 2, 3 + spot.y * h, (w - 3), (h - 3)), 0)
+
         # Draw the actual position in grid of the robot
         # xr: actual position x of the robot in the grid; yr: actual position y of the robot in the grid
         xr = start.x + (position.y // 0.178)
@@ -400,11 +500,7 @@ class A_star():
             if point == self.robot_track[-1]:
                 pygame.draw.rect(win, (255, 0, 255), (point[0] * w + 2, 3 + point[1] * h, (w - 3), (h - 3)), 0)
             else:
-                pygame.draw.rect(win, (102, 255, 102), (point[0] * w + 2, 3 + point[1] * h, (w - 3), (h - 3)), 0)
-
-        #rospy.loginfo('Xr: %s' % xr)
-        #rospy.loginfo('Yr: %s' % yr)
-        #rospy.loginfo('------')
+                pygame.draw.rect(win, (0, 0, 255), (point[0] * w + 2, 3 + point[1] * h, (w - 3), (h - 3)), 0)
 
         # Get the position of the obstacles
         # xo = position x of the obstacle, yo = position y of the obstacle
@@ -417,11 +513,12 @@ class A_star():
                 xo_in_grid = start.x + (yo // 0.178)
                 yo_in_grid = start.y + (xo // 0.178)
                 
-                if not [xo_in_grid, yo_in_grid] in self.detected_obstacles:
-                    self.detected_obstacles.append([xo_in_grid, yo_in_grid])
-
+                if not [xo_in_grid, yo_in_grid] in self.detected_obstacles_list:
+                    self.detected_obstacles_list.append([xo_in_grid, yo_in_grid])
+                    self.detected_obstacles.append(Spot(xo_in_grid, yo_in_grid))
+ 
         # Draw the obstacles detected
-        for obstacle in self.detected_obstacles:
+        for obstacle in self.detected_obstacles_list:
             pygame.draw.rect(win, (255, 255, 102), (obstacle[0] * w + 2, 3 + obstacle[1] * h, (w - 3), (h - 3)), 0)            
 
         pygame.display.update()
