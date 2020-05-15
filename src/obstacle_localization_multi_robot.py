@@ -361,12 +361,12 @@ class A_star():
     def __init__(self):
         rospy.init_node('path_and_localization', anonymous=False)
         rospy.on_shutdown(self.shutdown)
-        self.cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
+        self.cmd_vel = rospy.Publisher('/main_tb3/cmd_vel', Twist, queue_size=5)
         position = Point()
         move_cmd = Twist()
         r = rospy.Rate(10)
         self.tf_listener = tf.TransformListener()
-        self.odom_frame = 'odom'
+        self.odom_frame = '/main_tb3/odom'
         localization_screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Localization Algorithm")
         self.temp_detected_obstacles = []
@@ -378,16 +378,16 @@ class A_star():
         self.laser = [0 for i in range(360)]
         self.robot_track = [] # Positions where the robot have been
         self.robot_track_spots = [] # Same positions but in Spot form
-        rospy.Subscriber('/scan', LaserScan, self.get_laser, queue_size=1)
-        rospy.Subscriber("/odom", Odometry , self.get_theta, queue_size=1)        
+        rospy.Subscriber('/main_tb3/scan', LaserScan, self.get_laser, queue_size=1)
+        rospy.Subscriber("/main_tb3/odom", Odometry , self.get_theta, queue_size=1)        
 
         try:
-            self.tf_listener.waitForTransform(self.odom_frame, 'base_footprint', rospy.Time(), rospy.Duration(1.0))
-            self.base_frame = 'base_footprint'
+            self.tf_listener.waitForTransform(self.odom_frame, '/main_tb3/base_footprint', rospy.Time(), rospy.Duration(1.0))
+            self.base_frame = '/main_tb3/base_footprint'
         except (tf.Exception, tf.ConnectivityException, tf.LookupException):
             try:
-                self.tf_listener.waitForTransform(self.odom_frame, 'base_link', rospy.Time(), rospy.Duration(1.0))
-                self.base_frame = 'base_link'
+                self.tf_listener.waitForTransform(self.odom_frame, '/main_tb3/base_link', rospy.Time(), rospy.Duration(1.0))
+                self.base_frame = '/main_tb3/base_link'
             except (tf.Exception, tf.ConnectivityException, tf.LookupException):
                 rospy.loginfo("Cannot find transform between odom and base_link or base_footprint")
                 rospy.signal_shutdown("tf Exception")
