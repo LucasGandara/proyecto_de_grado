@@ -8,8 +8,8 @@ import neat
 import sys
 import os
 import time
+from math import pow
 import random
-random.seed(2)
 
 WIDTH = 650
 HEIGHT = 500
@@ -146,6 +146,7 @@ class Agent(Spot):
        self.color = pygame.Color(random.randint(0, 255),random.randint(0, 255),random.randint(0, 255))
        self.distToFinalPoint = 0
        self.closestPath = 0
+       self.lifepoints = 25 
     
     # TODO: get some better names
     def move_to(self, x, y):
@@ -179,11 +180,11 @@ class Agent(Spot):
             self.y = self.y + 1
             
     def view(self, obss_list):
-        """ This function allows the virtual agent to wath it's surroundings"""
+        """ This function allows the virtual agent to watch it's surroundings"""
         self.obs         = []
         self.obs_list    = []
         self.obs_to_draw = []
-        self.discrete_view = [-1 for i in range(361)]
+        self.discrete_view = [-1 for i in range(363)]
         for i in range(0, self.range_of_view):
             for j in range(-i, i + 1):
                 for k in range(-i, i + 1):
@@ -198,8 +199,10 @@ class Agent(Spot):
             if obstacle in walls_list or obstacle in obss_list:
                 self.obs_to_draw.append(obstacle)
                 self.discrete_view[x] = 1
+
+        self.discrete_view[-1] = start.y
+        self.discrete_view[-2] = start.x
                 
-                   
 def redrawGameWindow(win, robots):
     pygame.draw.rect(win, (148, 148, 148), (0, 0, WIDTH, HEIGHT))
 
@@ -231,8 +234,9 @@ def redrawGameWindow(win, robots):
     pygame.draw.rect(win, (255, 234, 0), (end.x * w, 1 + end.y * h, w, h))
 
     # Draw what the robot see
-    for obstacle in agent.obs_to_draw:
-        pygame.draw.rect(win, (255, 255, 255), (obstacle[0] * w, 1 + obstacle[1] * h, w, h))
+    if len(robots) > 1:
+        for obstacle in robots[0].obs_to_draw:
+            pygame.draw.rect(win, (255, 255, 255), (obstacle[0] * w, 1 + obstacle[1] * h, w, h))
 
     # Draw the wallls
     #for wall in walls:
@@ -276,8 +280,8 @@ for pair in tmp:
     walls[-1].color = pygame.Color(173, 0, 75)
 
 # Add Start adn End point
-start = spots[18][18]
-end   = spots[3][28]
+start = spots[path[0].x][path[0].y]
+end   = spots[15][12]
 
 def main(genomes, config):
     nets = []
@@ -302,11 +306,10 @@ def main(genomes, config):
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
-        robots.append(Agent(start.x, start.x))
+        robots.append(Agent(start.x, start.y))
         g.fitness = 0
         ge.append(g)
 
-    iterator = 0
     Gaming = True
     while Gaming:
         clock.tick(144)
@@ -323,6 +326,7 @@ def main(genomes, config):
             agent.view(obstacle_list)
             output = nets[x].activate(agent.discrete_view)
             agent.go_to(output.index(max(output)))
+            agent.lifepoints = agent.lifepoints - 1
 
             # Calculate the distance to final point
             agent.distToFinalPoint = np.linalg.norm(np.array([agent.x, agent.y]) - np.array([end.x, end.y]))
@@ -334,25 +338,43 @@ def main(genomes, config):
                 if dist < agent.closestPath:
                     agent.closestPath = dist
 
-            # If the robot crashes it dies
+            # If the robot crashes it dies and get a reward of 0
             for obstacle in obstacle_list:
                 if obstacle == [agent.x, agent.y]:
-                    ge[x].fitness -= 100
+                    ge[x].fitness = 0
                     robots.pop(x)
                     nets.pop(x)
                     ge.pop(x)
+                    continue
+
+            # If the robot crashes to a wall it dies and get a reward of 0
             for wall in walls:
                 if [wall.x, wall.y] == [agent.x, agent.y]:
-                    ge[x].fitness -= 100
+                    ge[x].fitness = 0
                     robots.pop(x)
                     nets.pop(x)
-            
-        if len(robots) <= 10:
+                    continue
+
+            # If the agent have 0 life points calculate the current fitness and multiply it by 0.7
+            if agent.lifepoints <= 0:
+                ge[x].fitness = 100 / pow(agent.distToFinalPoint, 1/3)
+                print(ge[x].fitness)
+                robots.pop(x)
+                nets.pop(x)
+                continue
+            # If the agent gets to the final point gets instant reward of 200
+            if [agent.x, agent.y] == [end.x, end.y]:
+                ge[x].fitness = 200
+                print('a robot did it')
+                print(ge[x].fitness)
+                robots.pop(x)
+                nets.pop(x)
+                continue
+
+        if len(robots) <= 3:
             redrawGameWindow(screen, robots)
         else:
-            redrawGameWindow(screen, robots[0:2])
-        if iterator < len(path) - 1: 
-            iterator += 1
+            redrawGameWindow(screen, robots)
 
 def run(config_path):
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
