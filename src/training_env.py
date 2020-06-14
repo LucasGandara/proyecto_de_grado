@@ -10,6 +10,7 @@ import os
 import time
 from math import pow
 import random
+import visualize
 
 WIDTH = 650
 HEIGHT = 500
@@ -146,7 +147,8 @@ class Agent(Spot):
        self.color = pygame.Color(random.randint(0, 255),random.randint(0, 255),random.randint(0, 255))
        self.distToFinalPoint = 0
        self.closestPath = 0
-       self.lifepoints = 25 
+       self.lifepoints =  65
+       self.directional_view = [0, 0, 0, 0, 0, 0, 0, 0] # This is the indicator of the direccion of the goal point [up, up-rigth, rigth, down-rigth, down, down-left, left, up-left]
     
     # TODO: get some better names
     def move_to(self, x, y):
@@ -154,9 +156,8 @@ class Agent(Spot):
             position """
         self.x = x
         self.y = y
-    
     def go_to(self, n):
-        if n == 0: # Stay still
+        if n == 0: # Stay still pass
             pass
         elif n == 1: # Go to the rigth
             self.x = self.x + 1
@@ -185,6 +186,8 @@ class Agent(Spot):
         self.obs_list    = []
         self.obs_to_draw = []
         self.discrete_view = [-1 for i in range(363)]
+        self.directional_view = [0, 0, 0, 0, 0, 0, 0, 0] 
+
         for i in range(0, self.range_of_view):
             for j in range(-i, i + 1):
                 for k in range(-i, i + 1):
@@ -202,7 +205,44 @@ class Agent(Spot):
 
         self.discrete_view[-1] = start.y
         self.discrete_view[-2] = start.x
-                
+
+        directions = [ [self.x, self.y-1]  , [self.x+1, self.y-1], [self.x+1, self.y],
+                       [self.x+1, self.y+1], [self.x, self.y+1]  , [self.x-1, self.y+1],
+                       [self.x-1, self.y]  , [self.x-1, self.y-1] ]
+        distances = [] 
+        for direction in directions:
+            distances.append(np.linalg.norm(np.array(direction) - np.array([end.x, end.y])))                        
+        # Set the minimun to 1
+        self.directional_view[distances.index(min(distances))] = 1
+
+        for direction in self.directional_view:
+            self.discrete_view.append(direction)
+
+        """ Draw the direction of the goal point
+
+        for indicator, direction in zip(self.directional_view, directions):
+            print 'indicator: ', indicator
+            print 'direction: ', direction
+            xx, yy = direction
+            if indicator == 1:
+                color = pygame.Color(0, 0, 0)
+            elif indicator == 0:
+                color = pygame.Color(255, 255, 255)
+
+            pygame.draw.rect(screen, color, (xx * w, 1 + yy * h, w, h), 1)        
+            pygame.display.update()
+            time.sleep(1)
+        """
+
+        """ Draw the range of view of the robot
+
+        for obstacle in self.obs_list:
+            xx, yy = obstacle
+            pygame.draw.rect(screen, (255, 255, 255), (xx * w, 1 + yy * h, w, h), 1)
+            pygame.display.update()
+            time.sleep(1)
+        """
+        
 def redrawGameWindow(win, robots):
     pygame.draw.rect(win, (148, 148, 148), (0, 0, WIDTH, HEIGHT))
 
@@ -229,7 +269,7 @@ def redrawGameWindow(win, robots):
     # Draw the agent
     for agent in robots:
         pygame.draw.rect(win, agent.color, (agent.x * w, 1 + agent.y * h, w, h))
-    
+ 
     # Draw the end spot!
     pygame.draw.rect(win, (255, 234, 0), (end.x * w, 1 + end.y * h, w, h))
 
@@ -281,7 +321,7 @@ for pair in tmp:
 
 # Add Start adn End point
 start = spots[path[0].x][path[0].y]
-end   = spots[15][12]
+end   = spots[6][28]
 
 def main(genomes, config):
     nets = []
@@ -312,7 +352,7 @@ def main(genomes, config):
 
     Gaming = True
     while Gaming:
-        clock.tick(144)
+        clock.tick(1)
         for events in pygame.event.get():
             pos = pygame.mouse.get_pos()
             if events.type == QUIT:
@@ -341,7 +381,7 @@ def main(genomes, config):
             # If the robot crashes it dies and get a reward of 0
             for obstacle in obstacle_list:
                 if obstacle == [agent.x, agent.y]:
-                    ge[x].fitness = 0
+                    ge[x].fitness = (100 / pow(agent.distToFinalPoint, 1.0/3)) - 15
                     robots.pop(x)
                     nets.pop(x)
                     ge.pop(x)
@@ -350,27 +390,31 @@ def main(genomes, config):
             # If the robot crashes to a wall it dies and get a reward of 0
             for wall in walls:
                 if [wall.x, wall.y] == [agent.x, agent.y]:
-                    ge[x].fitness = 0
+                    ge[x].fitness = (150 / pow(agent.distToFinalPoint, 1.0/3)) - 15
                     robots.pop(x)
                     nets.pop(x)
+                    ge.pop(x)
                     continue
 
-            # If the agent have 0 life points calculate the current fitness and multiply it by 0.7
-            if agent.lifepoints <= 0:
-                ge[x].fitness = 100 / pow(agent.distToFinalPoint, 1/3)
-                print(ge[x].fitness)
-                robots.pop(x)
-                nets.pop(x)
-                continue
             # If the agent gets to the final point gets instant reward of 200
             if [agent.x, agent.y] == [end.x, end.y]:
                 ge[x].fitness = 200
                 print('a robot did it')
-                print(ge[x].fitness)
+                #print(ge[x].fitness)
                 robots.pop(x)
                 nets.pop(x)
+                ge.pop(x)
                 continue
 
+            # If the agent have 0 life points calculate the current fitness and multiply it by 0.7
+            if agent.lifepoints <= 0:
+                ge[x].fitness = 150 / pow(agent.distToFinalPoint, 1.0/3)
+                #print(ge[x].fitness)
+                robots.pop(x)
+                nets.pop(x)
+                ge.pop(x)
+                continue
+            
         if len(robots) <= 3:
             redrawGameWindow(screen, robots)
         else:
@@ -381,11 +425,18 @@ def run(config_path):
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    p = neat.Population(config)
+    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-162')
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
-    winner = p.run(main, 50)
+    p.add_reporter(neat.checkpoint.Checkpointer(generation_interval=100,
+                                                time_interval_seconds=1000,
+                                                filename_prefix='neat-checkpoint-'))
+    winner = p.run(main, 1000)
+
+    visualize.draw_net(config, winner, True, node_names=None)
+    visualize.plot_stats(stats, ylog=False, view=True)
+    visualize.plot_species(stats, view=True)
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
