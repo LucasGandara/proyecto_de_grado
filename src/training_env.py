@@ -138,7 +138,7 @@ class Spot(object):
 
 class Agent(Spot):
     def __init__(self, x, y):
-       Spot.__init__(self, x, y) 
+       Spot.__init__(self, x, y)
        self.range_of_view = 10
        self.obs = []
        self.obs_list = []
@@ -243,7 +243,7 @@ class Agent(Spot):
             time.sleep(1)
         """
         
-def redrawGameWindow(win, robots):
+def redrawGameWindow(win, robots, endp, startp):
     pygame.draw.rect(win, (148, 148, 148), (0, 0, WIDTH, HEIGHT))
 
     #Dibujar la grilla
@@ -252,26 +252,29 @@ def redrawGameWindow(win, robots):
             pygame.draw.rect(win, (0, 0, 0), (spots[i][j].x * w, 1 + spots[i][j].y * h, w, h), 1)
 
     # Draw the medium risk Neighbors of the path
-        for spot in path:
-            for neighbour in spot.Neighbors2:
-                pygame.draw.rect(win, (204, 230, 255), (neighbour.x * w + 2, 1 + neighbour.y * h + 2, w - 4, h - 4))
+    #   for spot in path:
+    #        for neighbour in spot.Neighbors2:
+    #            pygame.draw.rect(win, (204, 230, 255), (neighbour.x * w + 2, 1 + neighbour.y * h + 2, w - 4, h - 4))
 
 
     # Draw the high risk Neighbors of the path
-    for spot in path:
-        for neighbour in spot.Neighbors:
-            pygame.draw.rect(win, (128, 191, 255), (neighbour.x * w + 2, 1 + neighbour.y * h + 2, w - 4, h- 4)) 
+    #for spot in path:
+    #    for neighbour in spot.Neighbors:
+    #        pygame.draw.rect(win, (128, 191, 255), (neighbour.x * w + 2, 1 + neighbour.y * h + 2, w - 4, h- 4)) 
         
     # Draw the path to follow
-    for spot in path:
-        pygame.draw.rect(win, spot.color, (spot.x * w, 1 + spot.y * h, w, h)) 
+    #for spot in path:
+    #    pygame.draw.rect(win, spot.color, (spot.x * w, 1 + spot.y * h, w, h)) 
  
     # Draw the agent
     for agent in robots:
         pygame.draw.rect(win, agent.color, (agent.x * w, 1 + agent.y * h, w, h))
  
     # Draw the end spot!
-    pygame.draw.rect(win, (255, 234, 0), (end.x * w, 1 + end.y * h, w, h))
+    pygame.draw.rect(win, (255, 234, 0), (endp.x * w, 1 + endp.y * h, w, h))
+
+    # Draw the start spot
+    pygame.draw.rect(win, (0, 0, 0), (startp.x * w, 1 + startp.y * h, w, h))
 
     # Draw what the robot see
     if len(robots) > 1:
@@ -320,8 +323,10 @@ for pair in tmp:
     walls[-1].color = pygame.Color(173, 0, 75)
 
 # Add Start adn End point
-start = spots[path[0].x][path[0].y]
-end   = spots[6][28]
+randnum = np.random.randint(-9, 9)
+randnum2 = np.random.randint(-6, 6)
+start = spots[path[0].x + randnum2][path[0].y]
+end   = spots[15 + randnum][28]
 
 def main(genomes, config):
     nets = []
@@ -335,6 +340,12 @@ def main(genomes, config):
     obstacle_file.close()
     rand1 = random.randint(-4, 3)
     rand2 = random.randint(-4, 3)
+
+    randnum3 = np.random.randint(-9, 9)
+    randend   = spots[15 + randnum3][28]   
+    randnum4 = np.random.randint(-6, 6)
+    randstart = spots[path[0].x + randnum4][path[0].y]
+
     for pair in tmp:
         aux = pair.split(',')
         obstacles.append(Spot(int(aux[0]) - 3 + rand1, int(aux[1]) + rand1))
@@ -346,7 +357,7 @@ def main(genomes, config):
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
-        robots.append(Agent(start.x, start.y))
+        robots.append(Agent(randstart.x, path[0].y))
         g.fitness = 0
         ge.append(g)
 
@@ -369,7 +380,7 @@ def main(genomes, config):
             agent.lifepoints = agent.lifepoints - 1
 
             # Calculate the distance to final point
-            agent.distToFinalPoint = np.linalg.norm(np.array([agent.x, agent.y]) - np.array([end.x, end.y]))
+            agent.distToFinalPoint = np.linalg.norm(np.array([agent.x, agent.y]) - np.array([randend.x, randend.y]))
 
             # Calculate the distance to the closest point of the trajectory
             agent.closestPath = 100
@@ -397,7 +408,7 @@ def main(genomes, config):
                     continue
 
             # If the agent gets to the final point gets instant reward of 200
-            if [agent.x, agent.y] == [end.x, end.y]:
+            if [agent.x, agent.y] == [randend.x, randend.y]:
                 ge[x].fitness = 200
                 print('a robot did it')
                 #print(ge[x].fitness)
@@ -416,23 +427,23 @@ def main(genomes, config):
                 continue
             
         if len(robots) <= 3:
-            redrawGameWindow(screen, robots)
+            redrawGameWindow(screen, robots, randend, randstart)
         else:
-            redrawGameWindow(screen, robots)
+            redrawGameWindow(screen, robots, randend, randstart)
 
 def run(config_path):
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-370')
+    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-535')
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
-    p.add_reporter(neat.checkpoint.Checkpointer(generation_interval=100,
+    p.add_reporter(neat.checkpoint.Checkpointer(generation_interval=20,
                                                 time_interval_seconds=1000,
                                                 filename_prefix='neat-checkpoint-'))
-    winner = p.run(main, 500)
+    winner = p.run(main, 100)
 
     visualize.draw_net(config, winner, True, node_names=None)
     visualize.plot_stats(stats, ylog=False, view=True)
