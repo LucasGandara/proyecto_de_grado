@@ -436,11 +436,11 @@ def run(config_path):
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-535')
+    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-627')
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
-    p.add_reporter(neat.checkpoint.Checkpointer(generation_interval=20,
+    p.add_reporter(neat.checkpoint.Checkpointer(generation_interval=1,
                                                 time_interval_seconds=1000,
                                                 filename_prefix='neat-checkpoint-'))
     winner = p.run(main, 100)
