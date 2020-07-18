@@ -47,7 +47,7 @@ def get_odometry(msg):
 
     euler = euler_from_quaternion(burger_orientation)
     TETA = euler[2]
-    
+
 # Odometry subscriber
 ROS.Subscriber("/odom", Odometry, get_odometry)
 

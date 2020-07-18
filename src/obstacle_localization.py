@@ -6,28 +6,17 @@ from pygame.locals import QUIT
 import sys
 from datetime import datetime
 from math import  hypot
-from os import system
+import numpy as np
+import os
+import random
 import subprocess
+import neat
 pygame.init()
-
-WIDTH = 650
-HEIGHT = 500
-path_screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("A* Algorithm")
-clock = pygame.time.Clock()
-walls = []
-obstacles = []
 
 # How many columns and rows?
 cols = 32
 rows = 32
-
-#Width and height of each cell of grid
-w = (WIDTH - 10) / cols
-h = (HEIGHT - 10) / rows
-path = []
-current = []
-
+""" Load NEAT """
 class Spot(object):
     def __init__(self, x, y):
         self.f = 0
@@ -138,6 +127,280 @@ class Spot(object):
 
         return Neighbors
 
+class Agent(Spot):
+    def __init__(self, x, y):
+       Spot.__init__(self, x, y)
+       self.range_of_view = 10
+       self.obs = []
+       self.obs_list = []
+       self.obs_to_draw = []
+       self.discrete_view = []
+       self.color = pygame.Color(random.randint(0, 255),random.randint(0, 255),random.randint(0, 255))
+       self.distToFinalPoint = 0
+       self.closestPath = 0
+       self.lifepoints =  65
+       self.directional_view = [0, 0, 0, 0, 0, 0, 0, 0] # This is the indicator of the direccion of the goal point [up, up-rigth, rigth, down-rigth, down, down-left, left, up-left]
+    
+    # TODO: get some better names
+    def move_to(self, x, y):
+        """ Moves the agent to a given (x, y) 
+            position """
+        self.x = x
+        self.y = y
+    def go_to(self, n):
+        if n == 0: # Stay still pass
+            pass
+        elif n == 1: # Go to the rigth
+            self.x = self.x + 1
+        elif n == 2: # Go to the top rigth
+            self.x = self.x + 1
+            self.y = self.y - 1
+        elif n == 3: # Go up
+            self.y = self.y - 1
+        elif n == 4: # Go top left
+            self.x = self.x - 1
+            self.y = self.y - 1
+        elif n == 5: # Go to the left
+            self.x = self.x - 1
+        elif n == 6: # Go down left
+            self.y = self.y - 1
+            self.x = self.x - 1
+        elif n == 7: # Go down
+            self.y = self.y + 1
+        elif n == 8: # Go down ritgth
+            self.x = self.x + 1
+            self.y = self.y + 1
+            
+    def view(self, obss_list):
+        """ This function allows the virtual agent to watch it's surroundings"""
+        self.obs         = []
+        self.obs_list    = []
+        self.obs_to_draw = []
+        self.discrete_view = [-1 for i in range(363)]
+        self.directional_view = [0, 0, 0, 0, 0, 0, 0, 0] 
+
+        for i in range(0, self.range_of_view):
+            for j in range(-i, i + 1):
+                for k in range(-i, i + 1):
+                    try:
+                        if [self.x + j, self.y + k] not in self.obs_list: # Append only once
+                            self.obs.append(spots[self.x + j][self.y + k])
+                            self.obs_list.append([self.x + j, self.y + k])
+                    except IndexError:
+                        pass
+
+        for x, obstacle in enumerate(self.obs_list):
+            if obstacle in walls_list or obstacle in obss_list:
+                self.obs_to_draw.append(obstacle)
+                self.discrete_view[x] = 1
+
+        self.discrete_view[-1] = start.y
+        self.discrete_view[-2] = start.x
+
+        directions = [ [self.x, self.y-1]  , [self.x+1, self.y-1], [self.x+1, self.y],
+                       [self.x+1, self.y+1], [self.x, self.y+1]  , [self.x-1, self.y+1],
+                       [self.x-1, self.y]  , [self.x-1, self.y-1] ]
+        distances = [] 
+        for direction in directions:
+            distances.append(np.linalg.norm(np.array(direction) - np.array([end.x, end.y])))                        
+        # Set the minimun to 1
+        self.directional_view[distances.index(min(distances))] = 1
+
+        for direction in self.directional_view:
+            self.discrete_view.append(direction)
+
+        """ Draw the direction of the goal point
+
+        for indicator, direction in zip(self.directional_view, directions):
+            print 'indicator: ', indicator
+            print 'direction: ', direction
+            xx, yy = direction
+            if indicator == 1:
+                color = pygame.Color(0, 0, 0)
+            elif indicator == 0:
+                color = pygame.Color(255, 255, 255)
+
+            pygame.draw.rect(screen, color, (xx * w, 1 + yy * h, w, h), 1)        
+            pygame.display.update()
+            time.sleep(1)
+        """
+
+        """ Draw the range of view of the robot
+
+        for obstacle in self.obs_list:
+            xx, yy = obstacle
+            pygame.draw.rect(screen, (255, 255, 255), (xx * w, 1 + yy * h, w, h), 1)
+            pygame.display.update()
+            time.sleep(1)
+        """
+
+# Create the 2D array
+spots = [[Spot(i, j) for j in range(rows)] for i in range(cols)]
+for i in range(len(spots)):
+    for j in range(len(spots[i])):
+        spots[i][j].addNeighbors(spots, 1)
+
+# Load the path to follow 
+path_file = open('/home/lucas/catkin_ws/src/proyecto_de_grado/src/path2.txt', 'r')
+path = []
+tmp = path_file.read().split('\n')
+path_file.close()
+for pair in tmp:
+    aux = pair.split()
+    path.append(Spot(int(aux[0]), int(aux[1])))
+    path[-1].addNeighbors(spots, n=1)
+    path[-1].addNeighbors(spots, n=2)
+    path[-1].color = pygame.Color(0, 0, 255)
+
+# read the list of the wall and obstacles
+wall_file = open('/home/lucas/catkin_ws/src/proyecto_de_grado/src/Wall.txt', 'r')
+walls = []
+walls_list = []
+tmp = wall_file.read().split('\n')
+wall_file.close()
+for pair in tmp:
+    aux = pair.split(',')
+    walls.append(Spot(int(aux[0]), int(aux[1])))
+    walls_list.append([int(aux[0]), int(aux[1])])
+    walls[-1].color = pygame.Color(173, 0, 75)
+
+# Add Start adn End point
+randnum = np.random.randint(-9, 9)
+randnum2 = np.random.randint(-6, 6)
+start = spots[path[0].x + randnum2][path[0].y]
+end   = spots[15 + randnum][28]
+
+def main(genomes, config):
+    nets = []
+    ge = []
+    robots = []
+    done_flag = False
+
+    obstacle_file = open('/home/lucas/catkin_ws/src/proyecto_de_grado/src/Obstacles.txt', 'r')
+    obstacles = []
+    obstacle_list = []
+    tmp = obstacle_file.read().split('\n')
+    obstacle_file.close()
+    rand1 = random.randint(-4, 3)
+    rand2 = random.randint(-4, 3)
+
+    randnum3 = np.random.randint(-9, 9)
+    randend   = spots[15 + randnum3][28]   
+    randnum4 = np.random.randint(-6, 6)
+    randstart = spots[path[0].x + randnum4][path[0].y]
+
+    for pair in tmp:
+        aux = pair.split(',')
+        obstacles.append(Spot(int(aux[0]) - 3 + rand1, int(aux[1]) + rand1))
+        obstacle_list.append([int(aux[0]) - 3 + rand1, int(aux[1]) + rand1])
+        obstacles.append(Spot(int(aux[0]) + 8 + rand2, int(aux[1]) + 2 + rand2))
+        obstacle_list.append([int(aux[0]) + 8 + rand2, int(aux[1]) + 2 + rand2])
+    obstacle_file.close()
+
+    for _, g in genomes:
+        net = neat.nn.FeedForwardNetwork.create(g, config)
+        nets.append(net)
+        robots.append(Agent(randstart.x, path[0].y))
+        g.fitness = 0
+        ge.append(g)
+
+    Gaming = True
+    while Gaming:
+        for events in pygame.event.get():
+            pos = pygame.mouse.get_pos()
+            if events.type == QUIT:
+                sys.exit(0)
+
+        if len(robots) <= 0:
+            Gaming = False
+            break
+
+        for x, agent in enumerate(robots):
+            agent.view(obstacle_list)
+            output = nets[x].activate(agent.discrete_view)
+            agent.go_to(output.index(max(output)))
+            agent.lifepoints = agent.lifepoints - 1
+
+            # Calculate the distance to final point
+            agent.distToFinalPoint = np.linalg.norm(np.array([agent.x, agent.y]) - np.array([randend.x, randend.y]))
+
+            # Calculate the distance to the closest point of the trajectory
+            agent.closestPath = 100
+            for spot in path:
+                dist = np.linalg.norm(np.array([agent.x, agent.y]) - np.array([spot.x, spot.y]))
+                if dist < agent.closestPath:
+                    agent.closestPath = dist
+
+            # If the robot crashes it dies and get a reward of 0
+            for obstacle in obstacle_list:
+                if obstacle == [agent.x, agent.y]:
+                    ge[x].fitness = (100 / pow(agent.distToFinalPoint, 1.0/3)) - 15
+                    robots.pop(x)
+                    nets.pop(x)
+                    ge.pop(x)
+                    continue
+
+            # If the robot crashes to a wall it dies and get a reward of 0
+            for wall in walls:
+                if [wall.x, wall.y] == [agent.x, agent.y]:
+                    ge[x].fitness = (150 / pow(agent.distToFinalPoint, 1.0/3)) - 15
+                    robots.pop(x)
+                    nets.pop(x)
+                    ge.pop(x)
+                    continue
+
+            # If the agent gets to the final point gets instant reward of 200
+            if [agent.x, agent.y] == [randend.x, randend.y]:
+                ge[x].fitness = 200
+                if not done_flag:
+                    print('a robot did it')
+                    done_flag = True
+                #print(ge[x].fitness)
+                robots.pop(x)
+                nets.pop(x)
+                ge.pop(x)
+                continue
+
+            # If the agent have 0 life points calculate the current fitness and multiply it by 0.7
+            if agent.lifepoints <= 0:
+                ge[x].fitness = 150 / pow(agent.distToFinalPoint, 1.0/3)
+                #print(ge[x].fitness)
+                robots.pop(x)
+                nets.pop(x)
+                ge.pop(x)
+                continue
+
+local_dir = os.path.dirname(__file__)
+config_path = os.path.join(local_dir, 'config.txt')
+
+config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                         neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                         config_path)
+
+print 'Reading neat checkpoint'
+p = neat.Checkpointer.restore_checkpoint('/home/lucas/catkin_ws/src/proyecto_de_grado/src/neat-checkpoint-628')
+print 'neat Checkpoint read'
+
+print 'Looking for the best genome'
+winner = p.run(main, 1)
+print 'Best genome finded'
+
+"""Finish load NEAT """
+
+WIDTH = 650
+HEIGHT = 500
+path_screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("A* Algorithm")
+clock = pygame.time.Clock()
+walls = []
+obstacles = []
+
+#Width and height of each cell of grid
+w = (WIDTH - 10) / cols
+h = (HEIGHT - 10) / rows
+path = []
+current = []
+
 def heuristic(a, b):
     return hypot(a.x - b.x, a.y - b.y)
 
@@ -207,6 +470,8 @@ pair_coodinates = obstacle_file.read()
 obstacle_list = pair_coodinates.split('\n')
 for pair in obstacle_list:
     pair2 = pair.split(',')
+    #obstalce_x.append(int(pair2[0]) - 6)
+    #obstacle_y.append(int(pair2[1]))
     obstalce_x.append(int(pair2[0]))
     obstacle_y.append(int(pair2[1]))
 
@@ -216,10 +481,10 @@ for x, y in zip(obstalce_x, obstacle_y):
     obstacles.append(spots[int(x)][int(y)])
     obstacle_list.append([x, y])
 
-
     """States:
         Open set: nodes that still needs to be evaluated
         closed set: all the nodes that have finished been evaluated"""
+
 OpenSet = []
 closedSet = []
 
@@ -272,7 +537,7 @@ while gaming:
                 path.append(temp.previous)
                 temp = temp.previous
             del(path[-1])
-            system('cls')
+            os.system('cls')
             print('Finish!')
             gaming = False
         try:
@@ -355,6 +620,7 @@ from math import radians, copysign, sqrt, pow, pi, atan2, sin, cos
 from tf.transformations import euler_from_quaternion
 import numpy as np
 import matplotlib.pyplot as plt
+import neat
 
 class A_star():
 
@@ -376,6 +642,7 @@ class A_star():
         self.burger_orientation = [0, 0, 0, 0]
         self.TETA = 0
         self.laser = [0 for i in range(360)]
+        self.control_flag = 'A_star'
         self.robot_track = [] # Positions where the robot have been
         self.robot_track_spots = [] # Same positions but in Spot form
         rospy.Subscriber('/scan', LaserScan, self.get_laser, queue_size=1)
@@ -392,8 +659,13 @@ class A_star():
                 rospy.loginfo("Cannot find transform between odom and base_link or base_footprint")
                 rospy.signal_shutdown("tf Exception")
         
-        for i in range(len(X_references)):
+        rospy.loginfo('A* on control')
 
+        for i in range(len(X_references)):
+            if self.control_flag == 'A_star':
+                pass
+            elif self.control_flag == 'NEAT':
+                break
             #print """----------------------------------
             #Going To point:
             #%s, %s
@@ -436,6 +708,106 @@ class A_star():
                 self.redrawGameWindow(localization_screen)
 
             (position, orientation) = self.get_odom()
+
+        if self.control_flag == 'NEAT':
+            rospy.loginfo('NEAT Taking control now')
+            self.cmd_vel.publish(Twist())
+
+            # Create the agent
+            xrobot = start.x + (position.y // 0.178)
+            yrobot = start.y + (position.x // 0.178)
+            agent = Agent(int(xrobot), int(yrobot))
+            
+            # Create the brain of the agent
+            best_genome = p.best_genome
+            config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                         neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                         '/home/lucas/catkin_ws/src/proyecto_de_grado/src/config.txt')
+
+            agentBrain = neat.nn.FeedForwardNetwork.create(best_genome, config)
+
+            for i in range(15):
+                agent.view(self.temp_detected_obstacles)
+
+                output = agentBrain.activate(agent.discrete_view)
+                agent.go_to(output.index(max(output)))
+
+
+                goal_x = (agent.y - start.y) * 0.178
+                goal_y = (agent.x - start.x) * 0.178
+
+                (position, orientation) = self.get_odom()
+        
+                last_rotation = 0
+                linear_speed = 1
+                angular_speed = 1
+                goal_distance = sqrt(pow(goal_x - position.x, 2) + pow(goal_y - position.y, 2))
+                distance = goal_distance
+
+                while distance > 0.05:
+
+                    x_followed.append(position.y)
+                    y_followed.append(-1 * position.x)
+
+                    (position, orientation) = self.get_odom()
+                    x_start = position.x
+                    y_start = position.y
+                    errror_teta = atan2(goal_y - y_start, goal_x- x_start)
+
+                    move_cmd.angular.z = angular_speed * errror_teta-orientation
+
+                    distance = sqrt(pow((goal_x - x_start), 2) + pow((goal_y - y_start), 2))
+                    move_cmd.linear.x = min(linear_speed * distance, 0.1)
+
+                    if move_cmd.angular.z > 0:
+                        move_cmd.angular.z = min(move_cmd.angular.z, 1.5)
+                    else:
+                        move_cmd.angular.z = max(move_cmd.angular.z, -1.5)
+
+                    last_rotation = orientation
+                    self.cmd_vel.publish(move_cmd)
+                    r.sleep()
+
+                    self.redrawGameWindow(localization_screen)
+
+            (position, orientation) = self.get_odom()
+        
+            last_rotation = 0
+            linear_speed = 1
+            angular_speed = 1
+            goal_x = X_references[-1]
+            goal_y = Y_references[-1]
+            goal_distance = sqrt(pow(goal_x - position.x, 2) + pow(goal_y - position.y, 2))
+            distance = goal_distance
+
+            while distance > 0.05:
+
+                x_followed.append(position.y)
+                y_followed.append(-1 * position.x)
+
+                (position, orientation) = self.get_odom()
+                x_start = position.x
+                y_start = position.y
+                errror_teta = atan2(goal_y - y_start, goal_x- x_start)
+
+                move_cmd.angular.z = angular_speed * errror_teta-orientation
+
+                distance = sqrt(pow((goal_x - x_start), 2) + pow((goal_y - y_start), 2))
+                move_cmd.linear.x = min(linear_speed * distance, 0.1)
+
+                if move_cmd.angular.z > 0:
+                    move_cmd.angular.z = min(move_cmd.angular.z, 1.5)
+                else:
+                    move_cmd.angular.z = max(move_cmd.angular.z, -1.5)
+
+                last_rotation = orientation
+                self.cmd_vel.publish(move_cmd)
+                r.sleep()
+
+                self.redrawGameWindow(localization_screen)
+
+
+            self.redrawGameWindow(localization_screen, agent)
 
         # Save the final robot track
         now = datetime.now().strftime("%H:%M:%S").replace(':', '_')
@@ -485,7 +857,7 @@ class A_star():
         self.cmd_vel.publish(Twist())
         rospy.sleep(1)
 
-    def redrawGameWindow(self, win):
+    def redrawGameWindow(self, win, agent=None):
         risk_flag = False
         pygame.draw.rect(win, (0, 0, 0), (0, 0, WIDTH, HEIGHT))
 
@@ -576,6 +948,8 @@ class A_star():
                 if obstacle in paht_list:
                     rospy.loginfo('Imminent Crash!!')
                     risk_flag = False
+                    if self.control_flag == 'A_star':
+                        self.control_flag = 'NEAT'
 
         for obstacle in self.new_obstacles:
             if risk_flag:
@@ -597,7 +971,7 @@ class A_star():
 
         # Draw the obstacles detected
         for obstacle in self.temp_detected_obstacles:
-            pygame.draw.rect(win, (222, 80, 80), (obstacle.x * w + 2, 3 + obstacle.y * h, (w - 3), (h - 3)), 0)
+            pygame.draw.rect(win, (255, 255, 255), (obstacle.x * w + 2, 3 + obstacle.y * h, (w - 3), (h - 3)), 0)
         """
         for obstacle in self.detected_obstacles_list:
             pygame.draw.rect(win, (255, 255, 102), (obstacle[0] * w + 2, 3 + obstacle[1] * h, (w - 3), (h - 3)), 0)            
@@ -605,6 +979,11 @@ class A_star():
         for obstacle in self.new_obstacles:
             pygame.draw.rect(win, (222, 80, 80), (obstacle[0] * w + 2, 3 + obstacle[1] * h, (w - 3), (h - 3)), 0)
         """ 
+
+        # When neat takes control draw the new agent
+        if agent:
+            pygame.draw.rect(win, agent.color, (agent.x * w + 2, 3 + agent.y * h, w - 3, h - 3), 0)
+
         pygame.display.update()
 
 A_star()

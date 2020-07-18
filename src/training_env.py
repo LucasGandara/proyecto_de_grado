@@ -157,7 +157,7 @@ class Agent(Spot):
         self.x = x
         self.y = y
     def go_to(self, n):
-        if n == 0: # Stay still pass
+        if n == 0: # Stay still
             pass
         elif n == 1: # Go to the rigth
             self.x = self.x + 1
@@ -436,7 +436,7 @@ def run(config_path):
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-535')
+    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-628')
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)

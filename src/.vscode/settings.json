@@ -3,5 +3,6 @@
         "/home/lucas/catkin_ws/devel/lib/python2.7/dist-packages",
         "/opt/ros/kinetic/lib/python2.7/dist-packages"
     ],
-    "python.pythonPath": "C:\\Users\\lucas\\Desktop\\proyecto_de_grado\\env\\Scripts\\python.exe"
+    "python.pythonPath": "/usr/bin/python",
+    "ros.distro": "kinetic"
 }
