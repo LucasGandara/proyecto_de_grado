@@ -440,7 +440,7 @@ def run(config_path):
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
-    p.add_reporter(neat.checkpoint.Checkpointer(generation_interval=20,
+    p.add_reporter(neat.checkpoint.Checkpointer(generation_interval=1,
                                                 time_interval_seconds=1000,
                                                 filename_prefix='neat-checkpoint-'))
     winner = p.run(main, 100)
