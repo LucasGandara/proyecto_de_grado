@@ -9,12 +9,13 @@ agent = DQNAgent()
 
 # Environment settings
 EPISODES = 20000
-SHOW_PREVIEW = False
+SHOW_PREVIEW = True
 
 # Exploration settings
 epsilon = 1  # Not constant, going to be decayed
 EPSILON_DECAY = 0.99975
 MIN_EPSILON = 0.001
+cost = []
 AddCostEvery = 500
 
 for episode in tqdm(range(1, EPISODES + 1), ascii=True, unit='Episode'):
@@ -50,4 +51,4 @@ for episode in tqdm(range(1, EPISODES + 1), ascii=True, unit='Episode'):
         SHOW_PREVIEW = True
 
     if (step % AddCostEvery) == 0:
-        cost.appen(agent.model.cost)
+        cost.append(agent.model.cost)

@@ -6,7 +6,7 @@ from collections import deque
 import numpy as np
 import random
 from tqdm import tqdm
-from Model import Sequential
+from neural_network import create_nn
 
 # Some DQL values
 REPLAY_MEMORY_SIZE = 50000
@@ -18,10 +18,10 @@ UPDATE_TARGET_EVERY = 5
 class DQNAgent:
     def __init__(self):
         #Main model
-        self.model = Sequential([369, 1], n_out=9, ini_type='xavier')
+        self.model = create_nn()
         
         # Target model
-        self.target_model = Sequential([369, 1], n_out=9, ini_type='xavier', from_model=True, model=self.model)
+        self.target_model = create_nn(model=self.model)
 
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
 
@@ -32,9 +32,9 @@ class DQNAgent:
 
     def get_qs(self, state, model='model'):
         if model == "model":
-            return self.model.forward_prop(np.array([state]).T)
+            return self.model.train(np.array([state]), Y=0, lr=0, train=False)
         if model == 'target':
-            return self.target_model.forward_prop(np.array([state]).T)
+            return self.target_model.train(np.array([state]), Y=0, lr=0, train=False)
 
     def train(self, terminal_state, step):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
@@ -43,10 +43,10 @@ class DQNAgent:
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
 
         current_states = np.array([transition[0] for transition in minibatch])
-        current_qs_list = np.array([self.get_qs(state) for state in current_states])
+        current_qs_list = np.array([self.get_qs(state)[0] for state in current_states])
         
         new_current_states = np.array([transition[3] for transition in minibatch])
-        future_qs_list = np.array([self.get_qs(state, 'target') for state in new_current_states])
+        future_qs_list = np.array([self.get_qs(state, 'target')[0] for state in new_current_states])
         
         X = []
         Y = []
@@ -65,12 +65,12 @@ class DQNAgent:
             Y.append(current_qs)
 
         # Here we train the NN
-        self.model.train(np.array(X), np.array(Y), LR=0.001, N_Epochs=1)
+        self.model.train(np.array(X), np.array(Y), lr=0.001)
 
         #Updating to determine if we want to update target_model yet
         if terminal_state:
             self.target_update_counter += 1
 
         if self.target_update_counter > UPDATE_TARGET_EVERY:
-            self.target_model = Sequential([369, 1], n_out=9, ini_type='xavier', from_model=True, model=self.model)
+            self.target_model = create_nn(model=self.model)
             self.target_update_counter = 0
