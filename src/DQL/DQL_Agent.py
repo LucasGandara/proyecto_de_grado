@@ -7,6 +7,7 @@ import numpy as np
 import random
 from tqdm import tqdm
 from neural_network import create_nn
+import pickle as pkl
 
 # Some DQL values
 REPLAY_MEMORY_SIZE = 50000
@@ -74,3 +75,23 @@ class DQNAgent:
         if self.target_update_counter > UPDATE_TARGET_EVERY:
             self.target_model = create_nn(model=self.model)
             self.target_update_counter = 0
+
+    def save(self):
+        modeltosave = []
+        for layer in self.model.nn:
+            modeltosave.append(layer)
+            modeltosave[-1].act_f = None
+        pkl.dump(modeltosave, open('Model.pkl', 'wb'))
+
+        sigm = (lambda x: 1 / (1 + np.e **(-x)),
+                lambda x: x * (1 - x))
+        for layer in self.model.nn:
+            layer.act_f = sigm
+
+
+    def load(self, model_name):
+        self.model.nn = pkl.load(open(model_name))
+        sigm = (lambda x: 1 / (1 + np.e **(-x)),
+                lambda x: x * (1 - x))
+        for layer in self.model.nn:
+            layer.act_f = sigm

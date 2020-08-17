@@ -1,4 +1,5 @@
 import numpy as np
+import pickle as pkl
 
 class neural_layer():
     def __init__(self, n_conn, n_neur, act_f):

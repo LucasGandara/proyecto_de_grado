@@ -23,6 +23,7 @@ class Robot_env():
         self.END_X = 3
         self.END_Y = 28
 
+        self.level = 1
         self.reward = -1
         self.MOVE_PENALTY = 1
         self.OBSTACLE_PENALTY = 300
@@ -71,7 +72,10 @@ class Robot_env():
             self.obstacles.append(Spot(obs2[0] + rand2, obs2[1] + rand2)) 
             self.obstacles_list.append([obs2[0] + rand2, obs2[1] + rand2])
 
-        self.end = Spot(15 + np.random.randint(-9, 9), 28)
+        if self.level <= 5:
+            self.end = Spot(self.agent.x, self.agent.y + self.level)
+        else:
+            self.end = Spot(15 + np.random.randint(-9, 9), 28)
         self.episode_step = 0
         self.observation = self.agent.view(self.obstacles_list, self.WALLS_LIST, self.end)
 
@@ -86,14 +90,18 @@ class Robot_env():
         if [self.agent.x, self.agent.y] in self.WALLS_LIST or [self.agent.x, self.agent.y] in self.obstacles_list:
             self.reward = -self.OBSTACLE_PENALTY
             self.done = True
+            self.level = 1
 
         elif [self.agent.x, self.agent.y] == [self.end.x, self.end.y]:
-            self.reward = self.END_POINT_REWARD
-            self.done = True
+            self.reward += self.END_POINT_REWARD
+            self.level += 1
+            self.reset()
+
         
         elif self.agent.x > self.ROWS or self.agent.x < 0 or self.agent.y > self.COLS or self.agent.y < 0:
             self.done = True
             self.reward = self.OBSTACLE_PENALTY
+            self.level = 1
 
         return (self.observation, self.reward, self.done)
 

@@ -7,6 +7,8 @@ from tqdm import tqdm
 env = Robot_env()
 agent = DQNAgent()
 
+agent.save()
+
 # Environment settings
 EPISODES = 20000
 SHOW_PREVIEW = True
@@ -52,3 +54,5 @@ for episode in tqdm(range(1, EPISODES + 1), ascii=True, unit='Episode'):
 
     if (step % AddCostEvery) == 0:
         cost.append(agent.model.cost)
+
+agent.save()
