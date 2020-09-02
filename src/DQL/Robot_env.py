@@ -60,7 +60,7 @@ class Robot_env():
             self.OBSTACLES_LIST_2.append([int(aux[0]) + 8, int(aux[1])])
             
     def reset(self):
-        self.agent = Agent(self.START_X + np.random.randint(-9, 9), self.START_Y)
+        self.agent = Agent(self.START_X + np.random.randint(-5, 5), self.START_Y)
         self.done = False
         self.obstacles = []
         self.obstacles_list = []
@@ -79,7 +79,7 @@ class Robot_env():
         self.episode_step = 0
         self.observation = self.agent.view(self.obstacles_list, self.WALLS_LIST, self.end)
 
-        return self.observation
+        return np.array(self.observation)
 
     def step(self, action):
         self.episode_step += 1

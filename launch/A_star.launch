@@ -1,4 +1,4 @@
 <?xml version="1.0"?>
 <launch>
-    <node pkg="proyecto_de_grado" type="A_star.py" name="A_Star_Path_Pinder" output="screen" />
+    <node pkg="proyecto_de_grado" type="A_star.py" name="A_Star_Path_Finder" output="screen" />
 </launch>
