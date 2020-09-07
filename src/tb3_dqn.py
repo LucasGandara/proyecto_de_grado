@@ -353,6 +353,11 @@ class tb3_DQN():
 
                 self.redrawGameWindow(localization_screen)
 
+                x_followed.append(position.y)
+                y_followed.append(-1 * position.x)
+
+                (position, orientation) = self.get_odom()
+
         # Save the final robot track
         now = datetime.now().strftime("%H:%M:%S").replace(':', '_')
         pygame.image.save(path_screen, '/home/lucas/catkin_ws/src/proyecto_de_grado/detection_trials/full_robot_track_at_' + now + '.png')
@@ -368,7 +373,7 @@ class tb3_DQN():
         ax.set_ylim([-4.984, 0.534])
         ax.set_xlim([-5.162, 0.356])
         plt.show()
-        fig.savefig('/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/PruebaDQN.png')
+        fig.savefig('/home/lucas/catkin_ws/src/proyecto_de_grado/Imgs/PruebaDQN' + now + '.png')
 
     def getState(self, laserscan):
         # Truncar los 360 valores a 25 (cada 15 grados)
@@ -555,7 +560,7 @@ class tb3_DQN():
         for obstacle in self.new_obstacles:
             if risk_flag:
                 if obstacle in paht_list:
-                    rospy.loginfo('Imminent Crash!!')
+                    rospy.loginfo('Imminaent Crash At {}'.format(obstacle))
                     risk_flag = False
                     if self.control_flag == 'A_star':
                         self.control_flag = 'DQN'
@@ -563,19 +568,19 @@ class tb3_DQN():
         for obstacle in self.new_obstacles:
             if risk_flag:
                 if obstacle in neighbors_list_high_risk:
-                        rospy.loginfo('High risk of Crash!!')
+                        rospy.loginfo('High risk of Crash At {}'.format(obstacle))
                         risk_flag = False
 
         for obstacle in self.new_obstacles:          
             if risk_flag:
                 if obstacle in neighbors_list_medium_risk:
-                    rospy.loginfo('Medium risk of Crash!!')
+                    rospy.loginfo('Medium risk of CrashAt {}'.format(obstacle))
                     risk_flag = False
         
         for obstacle in self.new_obstacles:
             if risk_flag:
                 if obstacle in neighbors_list_low_risk:
-                    rospy.loginfo('low risk of Crash!!')
+                    rospy.loginfo('low risk of CrashAt {}'.format(obstacle))
                     risk_flag = False
 
         # Draw the obstacles detected

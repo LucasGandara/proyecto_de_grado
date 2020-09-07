@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="tipo" default="0"/>
+
+    <node pkg="proyecto_de_grado" type="tb3_dqn.py" name="tb3_DQN" output="screen"/>
+
+    <node pkg="proyecto_de_grado" type="Mover_Robotino.py" name="MoveObstacle" args="$(arg tipo)" output="screen"/>
+</launch>
