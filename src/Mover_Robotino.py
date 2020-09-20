@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import sys
 import rospy
@@ -87,6 +88,8 @@ class Combination():
             time.sleep(0.1)
 
     def tipo1(self):
+        """ Obstáculos que no estan en la planeación de la trayectoria inicial
+            pero que aparecen una vez el móvil empieza a moverse """
         self.obs1.pose.position.x = 4.064512
         self.obs1.pose.position.y = -2.431163
         self.obs2.pose.position.x = 1.493949
