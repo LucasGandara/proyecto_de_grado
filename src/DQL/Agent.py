@@ -86,9 +86,11 @@ class Agent(Spot):
         self.directional_view[distances.index(min(distances))] = 1
 
         for direction in self.directional_view:
-            self.discrete_view.append(direction)
+            pass
+            # Uncomment this to add directional view
+            #self.discrete_view.append(direction)
 
-        return self.discrete_view
+        return np.array(self.discrete_view)
 
         """ Draw the direction of the goal point
 

@@ -113,7 +113,7 @@ pair_coodinates = obstacle_file.read()
 obstacle_list = pair_coodinates.split('\n')
 for pair in obstacle_list:
     pair2 = pair.split(',')
-    obstalce_x.append(int(pair2[0]))
+    obstalce_x.append(int(pair2[0]) - 5)
     obstacle_y.append(int(pair2[1]))
 
 for x, y in zip(obstalce_x, obstacle_y):
@@ -232,7 +232,7 @@ import matplotlib.pyplot as plt
 
 class A_star():
     def __init__(self):
-        rospy.init_node('A_Star_Path_Pinder', anonymous=False)
+        rospy.init_node('A_Star_Path_Finder', anonymous=False)
         rospy.on_shutdown(self.shutdown)
         self.cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
         position = Point()

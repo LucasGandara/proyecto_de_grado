@@ -1,12 +1,14 @@
 #!/usr/bin/env python   
 # -*- coding: utf-8 -*-
 
+import tensorflow as tf
+from tensorflow import keras
+
 from Robot_env import Robot_env
 from collections import deque
 import numpy as np
 import random
 from tqdm import tqdm
-from neural_network import create_nn
 import pickle as pkl
 
 # Some DQL values
@@ -19,10 +21,10 @@ UPDATE_TARGET_EVERY = 5
 class DQNAgent:
     def __init__(self):
         #Main model
-        self.model = create_nn()
+        self.model = self.create_model()
         
         # Target model
-        self.target_model = create_nn(model=self.model)
+        self.target_model = self.create_model()
 
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
 
@@ -32,10 +34,7 @@ class DQNAgent:
         self.replay_memory.append(transition)
 
     def get_qs(self, state, model='model'):
-        if model == "model":
-            return self.model.train(np.array([state]), Y=0, lr=0, train=False)
-        if model == 'target':
-            return self.target_model.train(np.array([state]), Y=0, lr=0, train=False)
+        return self.model.predict(state.reshape(-1, * state.shape) / 255)[0]
 
     def train(self, terminal_state, step):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
@@ -44,10 +43,10 @@ class DQNAgent:
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
 
         current_states = np.array([transition[0] for transition in minibatch])
-        current_qs_list = np.array([self.get_qs(state)[0] for state in current_states])
+        current_qs_list = self.model.predict(current_states)
         
         new_current_states = np.array([transition[3] for transition in minibatch])
-        future_qs_list = np.array([self.get_qs(state, 'target')[0] for state in new_current_states])
+        future_qs_list = self.target_model.predict(new_current_states)
         
         X = []
         Y = []
@@ -66,32 +65,26 @@ class DQNAgent:
             Y.append(current_qs)
 
         # Here we train the NN
-        self.model.train(np.array(X), np.array(Y), lr=0.001)
-
+       # Fit on all samples as one batch, log only on terminal state
+        self.model.fit(np.array(X)/255, np.array(Y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False)
         #Updating to determine if we want to update target_model yet
         if terminal_state:
             self.target_update_counter += 1
 
         if self.target_update_counter > UPDATE_TARGET_EVERY:
-            self.target_model = create_nn(model=self.model)
+            self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
-
-    def save(self):
-        modeltosave = []
-        for layer in self.model.nn:
-            modeltosave.append(layer)
-            modeltosave[-1].act_f = None
-        pkl.dump(modeltosave, open('Model.pkl', 'wb'))
-
-        sigm = (lambda x: 1 / (1 + np.e **(-x)),
-                lambda x: x * (1 - x))
-        for layer in self.model.nn:
-            layer.act_f = sigm
+        
+    def create_model(self):
+        modelo = keras.Sequential()
+        modelo.add(keras.layers.Dense(361, activation='linear'))
+        modelo.add(keras.layers.Dropout(0.2))
 
 
-    def load(self, model_name):
-        self.model.nn = pkl.load(open(model_name))
-        sigm = (lambda x: 1 / (1 + np.e **(-x)),
-                lambda x: x * (1 - x))
-        for layer in self.model.nn:
-            layer.act_f = sigm
+        modelo.add(keras.layers.Dense(units=64, activation='linear'))
+        modelo.add(keras.layers.Dropout(0.2))
+
+        modelo.add(keras.layers.Dense(9, activation="linear"))
+        modelo.compile(loss="mse", optimizer=keras.optimizers.Adam(lr=0.001), metrics=['accuracy'])
+
+        return modelo
