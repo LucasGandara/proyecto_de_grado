@@ -2,3 +2,5 @@
 env/
 src/__pycache__/
 *.pyc
+*.gv
+src/.vscode
